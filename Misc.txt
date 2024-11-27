@@ -1,2 +1,372 @@
-Using Dynamic Locators instead of Relative xpaths
-Goal Statement:1.To reduce the re-work activity in code, we have decided to use â€œDynamic xpathâ€ as locators in Automation code instead of ID. In customized or Dynamic xpath we use the HTML Structural view instead of mentioning a particular ID, hence the absolute HTML structure becomes almost same for all instances if all the fields or UI of the pages are same. 2. Reducing the Testing time Percentage (manual Code changes rework will be decreased by 60-70%, hence testing time will be reduced ). Potential Impact: Dynamic xpath is used to locate exact attribute or decrease the number of matching nodes from a webpage, hence it locates an element in a very unique way. Also, it is very useful when the objects are changing the value of their attributes. So it gives benefits to the tester like 1.The queries become more compact. 2. Syntax can be easy for common cases. 3.Query strings are easily embedded in programs, scripts and XML or HTML attributes. 4.Queries are easily parsed.
+Completion/ Acquired
+ID
+Name
+Type
+Score
+Grade
+Status
+Date
+Filter By certification Title / ID
+23641
+Google Cloud Generative Al Learning Series_General
+Curricula
+08-Nov-2024
+NA
+NA
+Acquired
+(L100)_Foundation Curriculum
+23167
+Wings2-Domain-R1-PP3-Proctored Assessment_curriculum
+Curricula
+NA
+NA
+NA
+Assigned
+22524
+Oracle Cloud Infrastructure Al Certified Foundations Associate External
+NA
+NA
+NA
+Assigned
+Certification
+14643
+BDA: Domain advisory: Foundation_Part 1_BFS_Payment Cards Curricula
+24-Feb-2024
+NA
+NA
+Acquired
+and Systems_Intermediate(14643)
+15144
+BDA: Domain advisory: Foundation_Part 1_BFS_Retail
+Curricula
+NA
+NA
+NA
+Assigned
+Banking_Intermediate(15144)
+20289
+Domain : Wings2_BFSI BFSS_Product
+Curricula
+NA
+NA
+NA
+In Progress
+Specialist_Banking_Curriculum
+16968
+Domain : Wings2_Product Specialist_BFSI_Banking_Curriculum Curricula
+NA
+NA
+NA
+In Progress
+7433
+Professional Scrum Product Owner I
+External
+06-Apr-2024
+NA
+NA
+Acquired
+15709
+Domain : TCS Elevate Wings2_Foundation_Product
+Curricula
+25-Jan-2024
+NA
+NA
+Acquired
+Specialist_Certification
+21551
+Connected Plants - 3D learning_Biz and Functional 2
+Curricula
+22-Dec-2023
+NA
+NA
+Acquired
+3987
+Domain advisory: Foundation_Certificate in Business Analysis
+Curricula
+NA
+NA
+NA
+Assigned
+Advanced(3987)
+18099
+Growth & Transformation : Awareness EO Proficiency
+Curricula
+21-Dec-2023
+NA
+NA
+Acquired
+21607
+Domain : CorpFunctions_Curriculum
+Curricula
+13-Dec-2023
+NA
+NA
+Acquired
+16578
+Domain advisory: Foundation_Domain Process_Curricula
+Curricula
+11-Dec-2023
+NA
+NA
+Acquired
+22376
+Technology : Google Cloud Generative Al learning Series
+Curricula
+07-Dec-2023
+NA
+NA
+Acquired
+Curriculum
+22326
+Technology : Generative Al Foundation Curriculum
+Curricula
+07-Dec-2023
+NA
+NA
+Acquired
+14319
+BFSI Ninja : ILP_Wave 1 Certification
+Curricula
+07-Dec-2023
+NA
+NA
+Acquired
+11804
+Domain advisory: Foundation_Certificate in BFS domain(11804) Curricula
+07-Dec-2023
+NA
+NA
+Acquired
+22669
+Domain Advisory: Foundation_Generative Al
+Curricula
+10-Dec-2023
+NA
+NA
+Acquired
+15429
+Domain advisory: Foundation
+Curricula
+12-Dec-2023
+NA
+NA
+Acquired
+15568
+Leadership : My Leadership Journey_Foundation_Domain
+Curricula
+NA
+NA
+NA
+Assigned
+Curriculum
+16870
+Domain : Wings2_Product Specialist_BFSI Platforms_Banking
+Curricula
+NA
+NA
+NA
+In Progress
+and Financial Services_Curriculum
+16556
+Domain : TCS Elevate Wings2_Product
+Curricula
+24-Jan-2024
+NA
+NA
+Acquired
+Specialist_Generic_Curriculum
+15702
+Self-leadership : Foundation
+Curricula
+24-Feb-2024
+NA
+NA
+Acquired
+15639
+Digital_WINGS 2_Generic_Digital Technology
+Curricula
+NA
+NA
+NA
+Assigned
+Appreciation_Foundation Certification
+15571
+Articulation: Intermediate
+Curricula
+NA
+NA
+NA
+Assigned
+14289
+Domain advisory: Intermediate
+Curricula
+22-Dec-2023
+NA
+NA
+Acquired
+14734
+Wings : Core Tech_T5_Extreme Automation Leveraging the
+Curricula
+NA
+NA
+NA
+Assigned
+Best of Cloud
+15205
+TCS Elevate Wings1 Certificate_IT
+Curricula
+NA
+NA
+NA
+In Progress
+19416
+Process : Wings2 - Scrum Master-PSM Curriculum
+Curricula
+NA
+NA
+NA
+Assigned
+5867
+iQMS for PLs Training - PM E0
+Curricula
+NA
+NA
+NA
+Assigned
+19517
+IT Infrastructure Services : Agile DC - Guild - Practitioner -
+Curricula
+10-Mar-2022
+NA
+NA
+Acquired
+Primary Technology Skill - Infrastructure as Code
+(laC)_Curriculum
+12668
+Digital : DevOps Intermediate
+Curricula
+09-Mar-2022
+NA
+NA
+Acquired
+8532
+1Z0-808 : Oracle Certified Associate, Java SE 8 Programmer
+External
+28-Sep-2021
+81
+NA
+Acquired
+Certification
+13944
+Delivery : TCS iON Project Evangelist_Foundation_ Curriculum
+Curricula
+22-Sep-2021
+NA
+NA
+Acquired
+11247
+BPS : Environment Health & Safety_Foundation
+Curricula
+27-May-2020
+NA
+NA
+Acquired
+3375
+Basic Agile Awareness for Team and Scrum Masters
+Curricula
+30-Mar-2019
+NA
+NA
+Acquired
+12209
+EIS : TCS Transformation Delivery Method for ORACLE
+Curricula
+08-Oct-2018
+NA
+NA
+Acquired
+CLOUD_Foundation
+8359
+Process : ITIL Foundation Certification
+Curricula
+13-Jun-2018
+NA
+NA
+Acquired
+10164
+ILP : Java Programming Essentials V2.0
+Curricula
+24-May-2018
+NA
+NA
+Acquired
+5576
+Foundation : Java Servlets and JSP Intermediate
+Curricula
+21-May-2018
+NA
+NA
+Acquired
+11439
+Digital : Ninja Competency pre-requisite
+Curricula
+20-May-2018
+NA
+NA
+Acquired
+5986
+Foundation : Java - JDBC Foundation
+Internal/Par 20-May-2018
+NA
+NA
+Acquired
+tner
+5693
+Java 5 / 6 Assessment - E1 - ( TCS Internal Curriculum )
+Curricula
+20-May-2018
+NA
+NA
+Acquired
+11971
+ILP : BDA Certificate in BFS
+Curricula
+19-May-2018
+NA
+NA
+Acquired
+10113
+Process : Agile Way of Working Foundation
+Curricula
+19-May-2018
+NA
+NA
+Acquired
+9262
+Digital : Internet Of Things_Foundation
+Curricula
+18-May-2018
+NA
+NA
+Acquired
+11078
+Foundation : Core Java Concepts Intermediate
+Curricula
+04-May-2018
+NA
+NA
+Acquired
+9253
+Digital : Cloud Computing (General)_Foundation
+Curricula
+02-May-2018
+NA
+NA
+Acquired
+11608
+Business communication: Foundation
+Curricula
+31-Mar-2018
+NA
+NA
+Acquired
