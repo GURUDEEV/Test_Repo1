@@ -12,7 +12,8 @@ st.set_page_config(
 )
 
 # Custom CSS
-st.markdown("""
+st.markdown(
+    """
     <style>
     .stDataFrame {
         font-size: 14px;
@@ -23,7 +24,9 @@ st.markdown("""
         border-radius: 4px;
     }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
 def get_smiley_html(category: str) -> str:
     """Convert SVG to base64 for HTML embedding"""
@@ -34,91 +37,128 @@ def get_smiley_html(category: str) -> str:
 def analyze_retrodata(df: pd.DataFrame) -> pd.DataFrame:
     """Analyze sentiment for each row in the dataframe"""
     analyzer = SentimentAnalyzer()
-    
+
     # Analyze sentiment for each comment
     sentiments = []
     for text in df['Comments']:
         sentiment = analyzer.analyze_text(text)
         sentiments.append(sentiment)
-    
+
     # Add sentiment information to dataframe
     df['Sentiment_Score'] = [s['compound'] for s in sentiments]
     df['Sentiment_Category'] = [s['category'] for s in sentiments]
     df['Color'] = [s['color'] for s in sentiments]
-    
+
+    sentiment_columns = [
+        'What Did Not Go Well?',
+        'What Went Well?',
+        'Reason for Churn',
+        'Improvement opportunity',
+        'Reason for reported success rate'
+    ]
+
+    for col in sentiment_columns:
+        if col in df.columns:
+            sentiments = []
+            for text in df[col]:
+                sentiment = analyzer.analyze_text(str(text))  # handle potential non-string values
+                sentiments.append(sentiment)
+            df[f'{col}_Sentiment_Score'] = [s['compound'] for s in sentiments]
+            df[f'{col}_Sentiment_Category'] = [s['category'] for s in sentiments]
+            df[f'{col}_Color'] = [s['color'] for s in sentiments]
+
+    if 'Comments' in df.columns:
+        sentiments = []
+        for text in df['Comments']:
+            sentiment = analyzer.analyze_text(text)
+            sentiments.append(sentiment)
+        df['Sentiment_Score'] = [s['compound'] for s in sentiments]
+        df['Sentiment_Category'] = [s['category'] for s in sentiments]
+        df['Color'] = [s['color'] for s in sentiments]
+
     return df
 
 def main():
-    st.title("📊 Retrospective Sentiment Analysis")
-    
+    st.title("Retrospective Sentiment Analysis")
+
     # File upload
     uploaded_file = st.file_uploader("Upload your retrospective Excel file", type=['xlsx'])
-    
+
     if uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
-            
+
             # Check if 'Comments' column exists
             if 'Comments' not in df.columns:
                 st.error("The Excel file must contain a 'Comments' column!")
                 return
-                
+
+            # Add error logging
+            st.write("Attempting to read Excel file...")
+
+            # Read Excel with explicit engine and error handling
+            df = pd.read_excel(
+                uploaded_file,
+                engine='openpyxl',
+                encoding_override='utf-8-sig'
+            )
+
             # Analyze sentiments
             df = analyze_retrodata(df)
-            
+
             # Filtering options
             st.subheader("Filter Options")
             col1, col2 = st.columns(2)
-            
+
             with col1:
                 sentiment_filter = st.multiselect(
                     "Filter by sentiment",
                     options=['very_negative', 'negative', 'neutral', 'positive', 'very_positive'],
                     default=[]
                 )
-            
+
             with col2:
                 sort_by = st.selectbox(
                     "Sort by",
                     options=['Sentiment_Score', 'Comments'],
                     index=0
                 )
-            
+
             # Apply filters
             if sentiment_filter:
-                df = df[df['Sentiment_Category'].isin(sentiment_filter)]
-            
+                f = df[df['Sentiment_Category'].isin(sentiment_filter)]
+
             # Sort dataframe
             df = df.sort_values(by=sort_by, ascending=False)
-            
+
             # Display results
             st.subheader("Analysis Results")
-            
+
             # Custom display function for the dataframe
             def format_row(row):
                 score_html = f'<span style="background-color: {row["Color"]}; color: black" class="sentiment-score">{row["Sentiment_Score"]:.2f}</span>'
                 smiley_html = get_smiley_html(row['Sentiment_Category'])
                 return pd.Series({
-                    'Comments': row['Comments'],
-                    'Sentiment': f'{score_html} {smiley_html}'
+                    "Comments": row['Comments'],
+                    "Sentiment": f'{score_html} {smiley_html}'
                 })
-            
+
             display_df = df.apply(format_row, axis=1)
             st.write(display_df.to_html(escape=False), unsafe_allow_html=True)
-            
+
             # Display statistics
             st.subheader("Summary Statistics")
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
-                st.metric("Average Sentiment", f"{df['Sentiment_Score'].mean():.2f}")
-            
+                st.metric("Average Sentiment", f"{df['Sentiment_Score'].mean():.2f}" if 'Sentiment_Score' in df.columns else "N/A")
+
             with col2:
-                st.metric("Most Common Sentiment", df['Sentiment_Category'].mode()[0])
-            
+                st.metric("Most Common Sentiment", df['Sentiment_Category'].mode()[0] if 'Sentiment_Category' in df.columns else "N/A")
+
             with col3:
                 st.metric("Total Comments", len(df))
-            
+
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
