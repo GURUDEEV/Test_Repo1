@@ -66,6 +66,11 @@ def main():
 
     if uploaded_file is not None:
         try:
+            df = pd.read_excel(uploaded_file)
+
+            # Add error logging
+            st.write("Attempting to read Excel file...")
+
             # Read Excel with explicit engine and error handling
             df = pd.read_excel(
                 uploaded_file,
@@ -90,19 +95,19 @@ def main():
             with col2:
                 sort_by = st.selectbox(
                     "Sort by",
-                    options=[col for col in df.columns if '_Sentiment_Score' in col],
+                    options=['What Did Not Go Well?_Sentiment_Score', 'What Went Well?_Sentiment_Score', 
+                             'Reason for Churn_Sentiment_Score', 'Improvement opportunity_Sentiment_Score', 
+                             'Reason for reported success rate_Sentiment_Score'],
                     index=0
                 )
 
             # Apply filters
             if sentiment_filter:
-                filtered_dfs = []
-                for col in df.columns:
-                    if '_Sentiment_Category' in col:
-                        filtered_df = df[df[col].isin(sentiment_filter)]
-                        filtered_dfs.append(filtered_df)
-                if filtered_dfs:
-                    df = pd.concat(filtered_dfs).drop_duplicates()
+                f = df[df['What Did Not Go Well?_Sentiment_Category'].isin(sentiment_filter) |
+                    df[df['What Went Well?_Sentiment_Category'].isin(sentiment_filter)] |
+                    df[df['Reason for Churn_Sentiment_Category'].isin(sentiment_filter)] |
+                    df[df['Improvement opportunity_Sentiment_Category'].isin(sentiment_filter)] |
+                    df[df['Reason for reported success rate_Sentiment_Category'].isin(sentiment_filter)]
 
             # Sort dataframe
             df = df.sort_values(by=sort_by, ascending=False)
@@ -112,18 +117,20 @@ def main():
 
             # Custom display function for the dataframe
             def format_row(row):
-                sentiment_cols = [col for col in row.index if '_Sentiment_Category' in col]
-                sentiment_html = []
-                for col in sentiment_cols:
-                    score_col = col.replace('_Category', '_Score')
-                    color_col = col.replace('_Category', '_Color')
-                    score_html = f'<span style="background-color: {row[color_col]}; color: black" class="sentiment-score">{row[score_col]:.2f}</span>'
-                    smiley_html = get_smiley_html(row[col])
-                    sentiment_html.append(f'{score_html} {smiley_html}')
-                return pd.Series({
-                    **{col: row[col] for col in row.index if '_Sentiment' not in col},
-                    **{col: sentiment_html[i] for i, col in enumerate(sentiment_cols)}
-                })
+                formatted_row = {}
+                sentiment_columns = [
+                    'What Did Not Go Well?',
+                    'What Went Well?',
+                    'Reason for Churn',
+                    'Improvement opportunity',
+                    'Reason for reported success rate'
+                ]
+                for col in sentiment_columns:
+                    if f'{col}_Sentiment_Score' in row:
+                        score_html = f'<span style="background-color: {row[f"{col}_Color"]}; color: black" class="sentiment-score">{row[f"{col}_Sentiment_Score"]:.2f}</span>'
+                        smiley_html = get_smiley_html(row[f'{col}_Sentiment_Category'])
+                        formatted_row[col] = f'{score_html} {smiley_html}'
+                return pd.Series(formatted_row)
 
             display_df = df.apply(format_row, axis=1)
             st.write(display_df.to_html(escape=False), unsafe_allow_html=True)
@@ -133,12 +140,10 @@ def main():
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                avg_sentiment = df[[col for col in df.columns if '_Sentiment_Score' in col]].mean().mean()
-                st.metric("Average Sentiment", f"{avg_sentiment:.2f}" if not pd.isna(avg_sentiment) else "N/A")
+                st.metric("Average Sentiment", f"{df['What Did Not Go Well?_Sentiment_Score'].mean():.2f}" if 'What Did Not Go Well?_Sentiment_Score' in df.columns else "N/A")
 
             with col2:
-                most_common_sentiment = df[[col for col in df.columns if '_Sentiment_Category' in col]].mode().iloc[0, 0]
-                st.metric("Most Common Sentiment", most_common_sentiment if not pd.isna(most_common_sentiment) else "N/A")
+                st.metric("Most Common Sentiment", df['What Did Not Go Well?_Sentiment_Category'].mode()[0] if 'What Did Not Go Well?_Sentiment_Category' in df.columns else "N/A")
 
             with col3:
                 st.metric("Total Rows", len(df))
