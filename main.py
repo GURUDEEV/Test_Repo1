@@ -38,17 +38,6 @@ def analyze_retrodata(df: pd.DataFrame) -> pd.DataFrame:
     """Analyze sentiment for each row in the dataframe"""
     analyzer = SentimentAnalyzer()
 
-    # Analyze sentiment for each comment
-    sentiments = []
-    for text in df['Comments']:
-        sentiment = analyzer.analyze_text(text)
-        sentiments.append(sentiment)
-
-    # Add sentiment information to dataframe
-    df['Sentiment_Score'] = [s['compound'] for s in sentiments]
-    df['Sentiment_Category'] = [s['category'] for s in sentiments]
-    df['Color'] = [s['color'] for s in sentiments]
-
     sentiment_columns = [
         'What Did Not Go Well?',
         'What Went Well?',
@@ -67,15 +56,6 @@ def analyze_retrodata(df: pd.DataFrame) -> pd.DataFrame:
             df[f'{col}_Sentiment_Category'] = [s['category'] for s in sentiments]
             df[f'{col}_Color'] = [s['color'] for s in sentiments]
 
-    if 'Comments' in df.columns:
-        sentiments = []
-        for text in df['Comments']:
-            sentiment = analyzer.analyze_text(text)
-            sentiments.append(sentiment)
-        df['Sentiment_Score'] = [s['compound'] for s in sentiments]
-        df['Sentiment_Category'] = [s['category'] for s in sentiments]
-        df['Color'] = [s['color'] for s in sentiments]
-
     return df
 
 def main():
@@ -86,16 +66,6 @@ def main():
 
     if uploaded_file is not None:
         try:
-            df = pd.read_excel(uploaded_file)
-
-            # Check if 'Comments' column exists
-            if 'Comments' not in df.columns:
-                st.error("The Excel file must contain a 'Comments' column!")
-                return
-
-            # Add error logging
-            st.write("Attempting to read Excel file...")
-
             # Read Excel with explicit engine and error handling
             df = pd.read_excel(
                 uploaded_file,
@@ -120,13 +90,19 @@ def main():
             with col2:
                 sort_by = st.selectbox(
                     "Sort by",
-                    options=['Sentiment_Score', 'Comments'],
+                    options=[col for col in df.columns if '_Sentiment_Score' in col],
                     index=0
                 )
 
             # Apply filters
             if sentiment_filter:
-                f = df[df['Sentiment_Category'].isin(sentiment_filter)]
+                filtered_dfs = []
+                for col in df.columns:
+                    if '_Sentiment_Category' in col:
+                        filtered_df = df[df[col].isin(sentiment_filter)]
+                        filtered_dfs.append(filtered_df)
+                if filtered_dfs:
+                    df = pd.concat(filtered_dfs).drop_duplicates()
 
             # Sort dataframe
             df = df.sort_values(by=sort_by, ascending=False)
@@ -136,11 +112,17 @@ def main():
 
             # Custom display function for the dataframe
             def format_row(row):
-                score_html = f'<span style="background-color: {row["Color"]}; color: black" class="sentiment-score">{row["Sentiment_Score"]:.2f}</span>'
-                smiley_html = get_smiley_html(row['Sentiment_Category'])
+                sentiment_cols = [col for col in row.index if '_Sentiment_Category' in col]
+                sentiment_html = []
+                for col in sentiment_cols:
+                    score_col = col.replace('_Category', '_Score')
+                    color_col = col.replace('_Category', '_Color')
+                    score_html = f'<span style="background-color: {row[color_col]}; color: black" class="sentiment-score">{row[score_col]:.2f}</span>'
+                    smiley_html = get_smiley_html(row[col])
+                    sentiment_html.append(f'{score_html} {smiley_html}')
                 return pd.Series({
-                    "Comments": row['Comments'],
-                    "Sentiment": f'{score_html} {smiley_html}'
+                    **{col: row[col] for col in row.index if '_Sentiment' not in col},
+                    **{col: sentiment_html[i] for i, col in enumerate(sentiment_cols)}
                 })
 
             display_df = df.apply(format_row, axis=1)
@@ -151,13 +133,15 @@ def main():
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.metric("Average Sentiment", f"{df['Sentiment_Score'].mean():.2f}" if 'Sentiment_Score' in df.columns else "N/A")
+                avg_sentiment = df[[col for col in df.columns if '_Sentiment_Score' in col]].mean().mean()
+                st.metric("Average Sentiment", f"{avg_sentiment:.2f}" if not pd.isna(avg_sentiment) else "N/A")
 
             with col2:
-                st.metric("Most Common Sentiment", df['Sentiment_Category'].mode()[0] if 'Sentiment_Category' in df.columns else "N/A")
+                most_common_sentiment = df[[col for col in df.columns if '_Sentiment_Category' in col]].mode().iloc[0, 0]
+                st.metric("Most Common Sentiment", most_common_sentiment if not pd.isna(most_common_sentiment) else "N/A")
 
             with col3:
-                st.metric("Total Comments", len(df))
+                st.metric("Total Rows", len(df))
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
