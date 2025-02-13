@@ -134,6 +134,9 @@ def main():
             # Common columns to display on the left
             common_columns = ['issue_key', 'team_id', 'sprint', 'updated']
 
+            # Get the corresponding text column for the sort_by column
+            text_column = sort_by.replace("_Sentiment_Score", "")
+
             # Custom display function for the dataframe
             def format_row(row):
                 formatted_row = {}
@@ -142,10 +145,11 @@ def main():
                     if col in row:
                         formatted_row[col] = row[col]
                 
-                # Add the selected sentiment score column
-                if sort_by in row:
+                # Add the text and score for the selected column
+                if text_column in row and sort_by in row:
                     score_html = f'<span style="background-color: {row[sort_by.replace("_Sentiment_Score", "_Color")]}; color: black" class="sentiment-score">{row[sort_by]:.2f}</span>'
-                    formatted_row[sort_by] = score_html
+                    formatted_row[text_column] = row[text_column]
+                    formatted_row[f'{text_column} Score'] = score_html
                 
                 return pd.Series(formatted_row)
 
