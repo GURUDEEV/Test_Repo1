@@ -36,13 +36,19 @@ def get_smiley_html(category: str) -> str:
     return f'<img src="data:image/svg+xml;base64,{b64}" width="24" height="24">'
 
 def sanitize_text(text: str) -> str:
-    """Sanitize text by removing bullets, newlines, and extra spaces"""
+    """Sanitize text by removing special characters, bullets, newlines, and extra spaces"""
     if not isinstance(text, str):
         return ""
+    
+    # Remove special characters (e.g., $, %, +, etc.)
+    text = re.sub(r'[^\w\s.,!?]', ' ', text)
+    
     # Remove bullets (•, -, *, etc.)
     text = re.sub(r'[\•\-\*]', ' ', text)
+    
     # Remove newlines and extra spaces
     text = re.sub(r'\s+', ' ', text).strip()
+    
     return text
 
 def analyze_retrodata(df: pd.DataFrame) -> pd.DataFrame:
@@ -84,7 +90,7 @@ def main():
     if uploaded_file is not None:
         try:
             # Read Excel file
-            df = pd.read_excel(uploaded_file, engine='openpyxl', encoding_override='utf-8-sig')
+            df = pd.read_excel(uploaded_file, engine='openpyxl')
 
             # Analyze sentiments
             df = analyze_retrodata(df)
@@ -125,24 +131,28 @@ def main():
             # Display results
             st.subheader("Analysis Results")
 
+            # Common columns to display on the left
+            common_columns = ['issue_key', 'team_id', 'sprint', 'updated']
+
             # Custom display function for the dataframe
             def format_row(row):
                 formatted_row = {}
-                sentiment_columns = [
-                    'What Did Not Go Well?',
-                    'What Went Well?',
-                    'Reason for Churn',
-                    'Improvement opportunity',
-                    'Reason for reported success rate'
-                ]
-                for col in sentiment_columns:
-                    if f'{col}_Sentiment_Score' in row:
-                        score_html = f'<span style="background-color: {row[f"{col}_Color"]}; color: black" class="sentiment-score">{row[f"{col}_Sentiment_Score"]:.2f}</span>'
-                        smiley_html = get_smiley_html(row[f'{col}_Sentiment_Category'])
-                        formatted_row[col] = f'{score_html} {smiley_html}'
+                # Add common columns
+                for col in common_columns:
+                    if col in row:
+                        formatted_row[col] = row[col]
+                
+                # Add the selected sentiment score column
+                if sort_by in row:
+                    score_html = f'<span style="background-color: {row[sort_by.replace("_Sentiment_Score", "_Color")]}; color: black" class="sentiment-score">{row[sort_by]:.2f}</span>'
+                    formatted_row[sort_by] = score_html
+                
                 return pd.Series(formatted_row)
 
+            # Apply formatting to the dataframe
             display_df = filtered_df.apply(format_row, axis=1)
+            
+            # Display the formatted dataframe
             st.write(display_df.to_html(escape=False), unsafe_allow_html=True)
 
             # Display statistics
@@ -150,11 +160,11 @@ def main():
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                avg_sentiment = filtered_df['What Did Not Go Well?_Sentiment_Score'].mean() if 'What Did Not Go Well?_Sentiment_Score' in filtered_df.columns else "N/A"
+                avg_sentiment = filtered_df[sort_by].mean() if sort_by in filtered_df.columns else "N/A"
                 st.metric("Average Sentiment", f"{avg_sentiment:.2f}" if avg_sentiment != "N/A" else "N/A")
 
             with col2:
-                most_common_sentiment = filtered_df['What Did Not Go Well?_Sentiment_Category'].mode()[0] if 'What Did Not Go Well?_Sentiment_Category' in filtered_df.columns else "N/A"
+                most_common_sentiment = filtered_df[sort_by.replace("_Sentiment_Score", "_Sentiment_Category")].mode()[0] if sort_by.replace("_Sentiment_Score", "_Sentiment_Category") in filtered_df.columns else "N/A"
                 st.metric("Most Common Sentiment", most_common_sentiment)
 
             with col3:
