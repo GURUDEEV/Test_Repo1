@@ -1,3 +1,68 @@
+import React, { useState, useEffect } from 'react';
+import * as tf from '@tensorflow/tfjs';
+import * as use from '@tensorflow-models/universal-sentence-encoder';
+import './App.css';
+
+function App() {
+  const [model, setModel] = useState(null);
+  const [text, setText] = useState('');
+  const [result, setResult] = useState({ label: '', score: 0 });
+
+  // Neutral threshold buffer (adjust as needed)
+  const NEUTRAL_RANGE = 0.15;
+
+  useEffect(() => {
+    loadModel();
+  }, []);
+
+  const loadModel = async () => {
+    const loadedModel = await use.load();
+    setModel(loadedModel);
+  };
+
+  const analyzeSentiment = async () => {
+    if (!model || !text) return;
+    
+    try {
+      const embeddings = await model.embed([text]);
+      const weights = tf.randomNormal([512, 3]); // Now 3 outputs
+      const prediction = tf.matMul(embeddings, weights).softmax();
+      const scores = await prediction.data();
+      
+      // Get max score and its index
+      const maxIndex = scores.indexOf(Math.max(...scores));
+      const label = ['Negative', 'Neutral', 'Positive'][maxIndex];
+      
+      setResult({
+        label,
+        score: Math.max(...scores).toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error analyzing sentiment:', error);
+    }
+  };
+
+  return (
+    <div className="App">
+      <h1>Sentiment Analysis</h1>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Enter text..."
+      />
+      <button onClick={analyzeSentiment}>Analyze</button>
+      {result.label && (
+        <p>
+          Sentiment: {result.label} (Confidence: {result.score})
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default App;
+
 const tf = require('@tensorflow/tfjs-node');
 const use = require('@tensorflow-models/universal-sentence-encoder');
 const readline = require('readline');
