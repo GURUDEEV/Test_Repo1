@@ -1,3 +1,98 @@
+import { useState } from 'react';
+import { pipeline } from '@xenova/transformers';
+
+function App() {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const analyzeSentiment = async () => {
+    if (!text) return;
+    
+    setLoading(true);
+    try {
+      // Create classification pipeline
+      const classifier = await pipeline(
+        'sentiment-analysis',
+        'Xenova/distilbert-base-uncased-finetuned-sst-2-english'
+      );
+
+      // Get prediction
+      const output = await classifier(text);
+      
+      // Calculate sentiment score
+      const positiveScore = output[0].label === 'POSITIVE' 
+        ? output[0].score 
+        : 1 - output[0].score;
+      const negativeScore = 1 - positiveScore;
+      const sentimentScore = positiveScore - negativeScore;
+
+      // Determine sentiment label
+      let label;
+      if (sentimentScore > 0) label = 'Positive';
+      else if (sentimentScore < 0) label = 'Negative';
+      else label = 'Neutral';
+
+      setResult({
+        label,
+        score: sentimentScore,
+        positive: positiveScore,
+        negative: negativeScore
+      });
+    } catch (error) {
+      console.error('Error analyzing sentiment:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="App" style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+      <h1>Transformer Sentiment Analysis</h1>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Enter text to analyze..."
+        style={{ width: '100%', height: '100px', margin: '10px 0' }}
+      />
+      <button 
+        onClick={analyzeSentiment} 
+        disabled={loading}
+        style={{ padding: '10px 20px', marginBottom: '20px' }}
+      >
+        {loading ? 'Analyzing...' : 'Analyze Sentiment'}
+      </button>
+
+      {result && (
+        <div style={{ 
+          padding: '20px', 
+          border: '1px solid #ccc', 
+          borderRadius: '5px',
+          textAlign: 'left'
+        }}>
+          <h3>Results:</h3>
+          <p>Sentiment: <strong>{result.label}</strong></p>
+          <p>Score: {result.score.toFixed(4)}</p>
+          <p>Positive Confidence: {(result.positive * 100).toFixed(1)}%</p>
+          <p>Negative Confidence: {(result.negative * 100).toFixed(1)}%</p>
+        </div>
+      )}
+
+      <div style={{ marginTop: '20px', color: '#666' }}>
+        <p>Scoring System:</p>
+        <ul>
+          <li>Score &gt; 0 → Positive</li>
+          <li>Score = 0 → Neutral</li>
+          <li>Score &lt; 0 → Negative</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
 const tf = require('@tensorflow/tfjs-node');
 const use = require('@tensorflow-models/universal-sentence-encoder');
 const readline = require('readline');
