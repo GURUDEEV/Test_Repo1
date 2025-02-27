@@ -1,3 +1,57 @@
+import React, { useState, useEffect } from 'react';
+import * as tf from '@tensorflow/tfjs';
+import * as use from '@tensorflow-models/universal-sentence-encoder';
+import './App.css';
+
+function App() {
+  const [model, setModel] = useState(null);
+  const [text, setText] = useState('');
+  const [sentiment, setSentiment] = useState('');
+
+  useEffect(() => {
+    loadModel();
+  }, []);
+
+  const loadModel = async () => {
+    const loadedModel = await use.load();
+    setModel(loadedModel);
+  };
+
+  const analyzeSentiment = async () => {
+    if (!model || !text) return;
+    
+    try {
+      // Generate embeddings
+      const embeddings = await model.embed([text]);
+      
+      // Mock classification (replace with real trained weights)
+      const weights = tf.randomNormal([512, 1]);
+      const prediction = tf.matMul(embeddings, weights).sigmoid();
+      const score = (await prediction.data())[0];
+      
+      setSentiment(score > 0.5 ? 'Positive' : 'Negative');
+    } catch (error) {
+      console.error('Error analyzing sentiment:', error);
+    }
+  };
+
+  return (
+    <div className="App">
+      <h1>Sentiment Analysis</h1>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Enter text..."
+      />
+      <button onClick={analyzeSentiment}>Analyze</button>
+      {sentiment && <p>Sentiment: {sentiment}</p>}
+    </div>
+  );
+}
+
+export default App;
+
 import streamlit as st
 import pandas as pd
 import base64
