@@ -1,3 +1,38 @@
+const tf = require('@tensorflow/tfjs-node');
+const use = require('@tensorflow-models/universal-sentence-encoder');
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+async function main() {
+  console.log('Loading model...');
+  const model = await use.load();
+  console.log('Model loaded. Enter text for analysis (type "exit" to quit):');
+
+  rl.on('line', async (input) => {
+    if (input.toLowerCase() === 'exit') {
+      rl.close();
+      return;
+    }
+
+    try {
+      const embeddings = await model.embed([input]);
+      const weights = tf.randomNormal([512, 1]);
+      const prediction = tf.matMul(embeddings, weights).sigmoid();
+      const score = (await prediction.data())[0];
+      console.log(`Sentiment: ${score > 0.5 ? 'Positive' : 'Negative'}`);
+    } catch (error) {
+      console.error('Error:', error.message);
+    }
+    
+    console.log('\nEnter another text:');
+  });
+}
+
+main().catch(console.error);
 import React, { useState, useEffect } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as use from '@tensorflow-models/universal-sentence-encoder';
