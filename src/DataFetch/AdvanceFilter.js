@@ -1,343 +1,234 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Select, Option, Card, Button } from '@citi-icg-172888/icgds-react';
+// ./DataFetch/AdvanceFilter.js (or wherever your component is)
+import React, { useState } from 'react';
+// Import El for layout
+import { Select, Option, Card, Button, El } from '@citi-icg-172888/icgds-react';
 
+// Assuming you might want to pass functions to handle apply/clear/close
+// You can add props like: ({ onApplyFilters, onClose })
 export default function CustomizeFilter() {
-  // State to store selected values for each filter
-  const [filters, setFilters] = useState({
-    sprint: '',
-    domain: '',
-    tpm: '',
-    issueType: '',
-    capability: '',
-    productOwner: '',
-  });
-
-  // Ref for the card header
-  const cardHeaderRef = useRef();
-
-  // Handle change for each filter
-  const onChange = (filterName, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterName]: value,
-    }));
-    console.log(`Selected ${filterName}: ${value}`);
-  };
-
-  // Handle Apply button click
-  const handleApply = () => {
-    // Log the selected filters (you can replace this with your own function)
-    console.log('Applied Filters:', filters);
-
-    // Example: Invoke a function to handle the applied filters
-    applyFilters(filters);
-  };
-
-  // Function to handle applied filters (replace with your actual logic)
-  const applyFilters = (filterValues) => {
-    // This is a placeholder function; replace it with your actual logic
-    console.log('Invoking applyFilters with values:', filterValues);
-    // Example: You might pass these values to a parent component, make an API call, etc.
-  };
-
-  // Handle Cancel button click (reset selections)
-  const handleCancel = () => {
-    setFilters({
-      sprint: '',
-      domain: '',
-      tpm: '',
-      issueType: '',
-      capability: '',
-      productOwner: '',
+    // State to store selected values for each filter
+    const [filters, setFilters] = useState({
+        sprint: null, // Use null or undefined for empty Select state
+        domain: null,
+        tpm: null,
+        issueType: null,
+        capability: null,
+        productOwner: null,
     });
-    console.log('Filters reset');
-  };
 
-  // Sample data for dropdowns (you can replace these with actual data)
-  const sprintOptions = [
-    { title: 'Sprint 1', label: 'Sprint 1', value: 'sprint1' },
-    { title: 'Sprint 2', label: 'Sprint 2', value: 'sprint2' },
-    { title: 'Sprint 3', label: 'Sprint 3', value: 'sprint3' },
-  ];
+    // Handle change for each filter
+    const onChange = (filterName, value) => {
+        setFilters((prev) => ({
+            ...prev,
+            [filterName]: value,
+        }));
+        console.log(`Selected ${filterName}: ${value}`);
+    };
 
-  const domainOptions = [
-    { title: 'Domain A', label: 'Domain A', value: 'domainA' },
-    { title: 'Domain B', label: 'Domain B', value: 'domainB' },
-    { title: 'Domain C', label: 'Domain C', value: 'domainC' },
-  ];
+    // Handle Apply button click
+    const handleApply = () => {
+        console.log('Applied Filters:', filters);
+        // Pass filters up to parent component if needed
+        // if (onApplyFilters) {
+        //     onApplyFilters(filters);
+        // }
+        // Close the popover (this often needs state management in the parent)
+        // if (onClose) {
+        //     onClose();
+        // }
+    };
 
-  const tpmOptions = [
-    { title: 'TPM 1', label: 'TPM 1', value: 'tpm1' },
-    { title: 'TPM 2', label: 'TPM 2', value: 'tpm2' },
-    { title: 'TPM 3', label: 'TPM 3', value: 'tpm3' },
-  ];
+    // Handle Clear button click (reset selections)
+    const handleClear = () => {
+        setFilters({
+            sprint: null,
+            domain: null,
+            tpm: null,
+            issueType: null,
+            capability: null,
+            productOwner: null,
+        });
+        console.log('Filters cleared');
+    };
 
-  const issueTypeOptions = [
-    { title: 'Bug', label: 'Bug', value: 'bug' },
-    { title: 'Feature', label: 'Feature', value: 'feature' },
-    { title: 'Task', label: 'Task', value: 'task' },
-  ];
+    // Sample data for dropdowns (keep as is)
+    const sprintOptions = [/* ... */];
+    const domainOptions = [/* ... */];
+    const tpmOptions = [/* ... */];
+    const issueTypeOptions = [/* ... */];
+    const capabilityOptions = [/* ... */];
+    const productOwnerOptions = [/* ... */];
+     // Add sample data back if missing from snippet
+     // const sprintOptions = [ { title: 'Sprint 1', label: 'Sprint 1', value: 'sprint1' }, ...];
+     // const domainOptions = [ { title: 'Domain A', label: 'Domain A', value: 'domainA' }, ...];
+     // const tpmOptions = [ { title: 'TPM 1', label: 'TPM 1', value: 'tpm1' }, ... ];
+     // const issueTypeOptions = [ { title: 'Bug', label: 'Bug', value: 'bug' }, ... ];
+     // const capabilityOptions = [ { title: 'Capability 1', label: 'Capability 1', value: 'capability1' }, ...];
+     // const productOwnerOptions = [ { title: 'Owner 1', label: 'Owner 1', value: 'owner1' }, ...];
 
-  const capabilityOptions = [
-    { title: 'Capability 1', label: 'Capability 1', value: 'capability1' },
-    { title: 'Capability 2', label: 'Capability 2', value: 'capability2' },
-    { title: 'Capability 3', label: 'Capability 3', value: 'capability3' },
-  ];
 
-  const productOwnerOptions = [
-    { title: 'Owner 1', label: 'Owner 1', value: 'owner1' },
-    { title: 'Owner 2', label: 'Owner 2', value: 'owner2' },
-    { title: 'Owner 3', label: 'Owner 3', value: 'owner3' },
-  ];
+    // Common filter function for search (keep as is)
+    const customizeFilter = (input, option) =>
+        option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0;
 
-  // Common filter function for search
-  const customizeFilter = (input, option) =>
-    option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+    return (
+        // Use Card, set appropriate width and padding. Remove layout classes like lmn-col-*.
+        <Card
+            className="lmn-p-16px" // Use standard padding class
+            style={{ width: '500px' /* Adjust width as needed */ }}
+            // Remove ref unless needed, remove hover, remove getPopupContainer from Card
+        >
+            {/* Use Card header mechanism with ICGDS typography */}
+            <p header className="lmn-h4 lmn-mb-16px">Extended Filters</p>
 
-  return (
-    <Card
-      hover
-      ref={cardHeaderRef}
-      className="lmn-shadow-lg lmn-p-3 lmn-mb-5 lmn-bg-white lmn-border lmn-border-strong lmn-col-12 lmn-mt-4px"
-      style={{ maxWidth: '800px', margin: '0 auto' }}
-      getPopupContainer={() => document.querySelector('#popover20')}
-    >
-      <h3 style={{ fontWeight: 'bold', marginBottom: '20px' }}>Extended Filters</h3>
+            {/* Use Card body, remove its default padding if grid handles spacing */}
+            <Card body style={{ padding: 0 }}>
+                {/* Use ICGDS grid system */}
+                <El className="lmn-row lmn-gutter-16"> {/* Row with 16px gutters */}
+                    {/* Sprint Filter */}
+                    <El className="lmn-col-6 lmn-mb-16px"> {/* Half width, bottom margin */}
+                        <Select
+                            label="Sprint" // Use label prop
+                            showSearch
+                            highlightOption
+                            block // Make select fill column
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('sprint', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            // Remove getPopupContainer - let it render within popover
+                            value={filters.sprint}
+                            allowClear // Optional: Add clear button inside select
+                        >
+                            {sprintOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
 
-      {/* Row 1: Sprint and Domain */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        {/* Sprint Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            Sprint
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('sprint', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.sprint}
-          >
-            {sprintOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
+                    {/* Domain Filter */}
+                    <El className="lmn-col-6 lmn-mb-16px">
+                        <Select
+                            label="Domain"
+                            showSearch
+                            highlightOption
+                            block
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('domain', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            value={filters.domain}
+                            allowClear
+                        >
+                            {domainOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
 
-        {/* Domain Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            Domain
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('domain', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.domain}
-          >
-            {domainOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
-      </div>
+                    {/* TPM Filter */}
+                     <El className="lmn-col-6 lmn-mb-16px">
+                        <Select
+                            label="TPM"
+                            showSearch
+                            highlightOption
+                            block
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('tpm', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            value={filters.tpm}
+                            allowClear
+                        >
+                            {tpmOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
 
-      {/* Row 2: TPM and Issue Type */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        {/* TPM Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            TPM
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('tpm', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.tpm}
-          >
-            {tpmOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
+                    {/* Issue Type Filter */}
+                    <El className="lmn-col-6 lmn-mb-16px">
+                        <Select
+                            label="Issue Type"
+                            showSearch
+                            highlightOption
+                            block
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('issueType', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            value={filters.issueType}
+                            allowClear
+                        >
+                            {issueTypeOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
 
-        {/* Issue Type Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            Issue Type
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('issueType', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.issueType}
-          >
-            {issueTypeOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
-      </div>
+                    {/* Capability Filter */}
+                    <El className="lmn-col-6 lmn-mb-16px">
+                        <Select
+                            label="Capability"
+                            showSearch
+                            highlightOption
+                            block
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('capability', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            value={filters.capability}
+                            allowClear
+                        >
+                            {capabilityOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
 
-      {/* Row 3: Capability and Product Owner */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        {/* Capability Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            Capability
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('capability', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.capability}
-          >
-            {capabilityOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
+                    {/* Product Owner Filter */}
+                    <El className="lmn-col-6 lmn-mb-16px">
+                        <Select
+                            label="Product Owner"
+                            showSearch
+                            highlightOption
+                            block
+                            placeholder="Select an option"
+                            onChange={(value) => onChange('productOwner', value)}
+                            optionLabelProp="label"
+                            customizeFilter={customizeFilter}
+                            value={filters.productOwner}
+                            allowClear
+                        >
+                            {productOwnerOptions.map((option) => (
+                                <Option key={option.value} title={option.title} label={option.label} value={option.value}>
+                                    {option.label}
+                                </Option>
+                            ))}
+                        </Select>
+                    </El>
+                </El> {/* End lmn-row */}
 
-        {/* Product Owner Filter */}
-        <div style={{ flex: '1' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '5px',
-              fontSize: '14px',
-              color: '#333',
-            }}
-          >
-            Product Owner
-          </label>
-          <Select
-            showSearch
-            highlightOption
-            style={{ width: '100%' }}
-            placeholder="Select an option"
-            onChange={(value) => onChange('productOwner', value)}
-            optionLabelProp="label"
-            customizeFilter={customizeFilter}
-            getPopupContainer={() => document.querySelector('#app-content')}
-            value={filters.productOwner}
-          >
-            {productOwnerOptions.map((option) => (
-              <Option
-                key={option.value}
-                title={option.title}
-                label={option.label}
-                value={option.value}
-              >
-                {option.label}
-              </Option>
-            ))}
-          </Select>
-        </div>
-      </div>
-
-      {/* Buttons */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-        <Button onClick={handleCancel} className="lmn-mr-8px" color="outline">
-          Clear
-        </Button>
-        <Button onClick={handleApply} className="lmn-mr-8px" color="primary">
-          Apply
-        </Button>
-      </div>
-    </Card>
-  );
+                {/* Buttons - Use ICGDS flex utilities */}
+                <El className="lmn-d-flex lmn-justify-content-end lmn-mt-16px">
+                    <Button onClick={handleClear} className="lmn-mr-8px" color="secondary" /* Use secondary or outline */ >
+                        Clear
+                    </Button>
+                    <Button onClick={handleApply} color="primary">
+                        Apply
+                    </Button>
+                </El>
+            </Card> {/* End Card body */}
+        </Card> // End Outer Card
+    );
 }
