@@ -1,0 +1,19 @@
+@import "@citi-icg-172888/icgds-ag-grid/dist/css/icgds-ag-theme.css";
+@import "@citi-icg-172888/icgds-icons/dist/icgds-icons.css";
+@import "@citi-icg-172888/icgds-design-tokens/dist/legacy/legacy.css";
+@import "@citi-icg-172888/icgds-design-tokens/dist/vis/vis.css";
+@import "@citi-icg-172888/icgds/dist/css/icgds.css";
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
