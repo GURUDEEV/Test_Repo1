@@ -174,3 +174,126 @@ finally:
     if 'server' in locals() and server.auth.is_signed_in():
         server.auth.sign_out()
         print("Logged out from Tableau Server")
+
+---------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        .tab {
+            display: inline-block;
+            padding: 10px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #ccc;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="tab" id="prod-tab">PROD</div>
+        <div class="tab" id="uat-tab">UAT</div>
+    </div>
+    <div id="prod-content" class="tab-content">
+        <tableau-viz id='tableau-viz-prod' src='https://insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?' width='1000' height='863' toolbar='bottom'></tableau-viz>
+        <button id="save-prod-data">Save PROD Data</button>
+    </div>
+    <div id="uat-content" class="tab-content">
+        <tableau-viz id='tableau-viz-uat' src='https://uat.insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?' width='1000' height='863' toolbar='bottom'></tableau-viz>
+        <button id="save-uat-data">Save UAT Data</button>
+    </div>
+
+    <script type='module' src='https://insights.citigroup.net/javascripts/api/tableau.embedding.3.latest.min.js'></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const prodTab = document.getElementById('prod-tab');
+            const uatTab = document.getElementById('uat-tab');
+            const prodContent = document.getElementById('prod-content');
+            const uatContent = document.getElementById('uat-content');
+
+            prodTab.addEventListener('click', function() {
+                prodTab.classList.add('active');
+                uatTab.classList.remove('active');
+                prodContent.classList.add('active');
+                uatContent.classList.remove('active');
+            });
+
+            uatTab.addEventListener('click', function() {
+                uatTab.classList.add('active');
+                prodTab.classList.remove('active');
+                uatContent.classList.add('active');
+                prodContent.classList.remove('active');
+            });
+
+            // Initialize Tableau visualizations
+            const prodVizElement = document.getElementById('tableau-viz-prod');
+            const prodVizUrl = prodVizElement.getAttribute('src');
+            const prodViz = new tableau.Viz(prodVizElement, prodVizUrl, { hideTabs: true });
+
+            const uatVizElement = document.getElementById('tableau-viz-uat');
+            const uatVizUrl = uatVizElement.getAttribute('src');
+            const uatViz = new tableau.Viz(uatVizElement, uatVizUrl, { hideTabs: true });
+
+            // Set initial active tab
+            prodTab.click();
+
+            // Function to save data to Excel
+            function saveDataToExcel(viz, fileName) {
+                console.log("Saving data to Excel for:", fileName);
+                const workbook = viz.getWorkbook();
+                const activeSheet = workbook.getActiveSheet();
+                activeSheet.getSummaryDataAsync().then(function(t) {
+                    const data = t.getData();
+                    const columns = t.getColumns();
+                    
+                    // Prepare data for Excel
+                    const excelData = [];
+                    const headers = columns.map(col => col.getFieldName());
+                    excelData.push(headers);
+
+                    data.forEach(row => {
+                        const rowData = row.map(cell => cell.formattedValue);
+                        excelData.push(rowData);
+                    });
+
+                    console.log("Excel data prepared:", excelData);
+
+                    // Create a new workbook and add the data
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.aoa_to_sheet(excelData);
+                    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+                    // Save the workbook
+                    XLSX.writeFile(wb, fileName);
+                    console.log("File saved:", fileName);
+                }).catch(function(error) {
+                    console.error("Error getting summary data:", error);
+                });
+            }
+
+            // Event listeners for saving data
+            document.getElementById('save-prod-data').addEventListener('click', function() {
+                saveDataToExcel(prodViz, "prod_data.xlsx");
+            });
+
+            document.getElementById('save-uat-data').addEventListener('click', function() {
+                saveDataToExcel(uatViz, "uat_data.xlsx");
+            });
+        });
+    </script>
+</body>
+</html>
