@@ -103,56 +103,74 @@ except Exception as e:
     print(f"General error: {e}")
 --------------------------
 
-import requests
-from bs4 import BeautifulSoup
+import tableauserverclient as TSC
 import csv
 
-# Configuration - REPLACE WITH YOUR ACTUAL CREDENTIALS
-TABLEAU_URL = 'https://uat.insights.citigroup.net'
-VIEW_URL = '/vizql/showadminview/views/WhoHasSeen?view_id=30900'
-USERNAME = 'your_username'
-PASSWORD = 'your_password'
+# Configuration
+TABLEAU_SERVER_URL = 'https://uat.insights/sss.net'
+SITE_ID = 'GCT'
+VIEW_ID = '30b0b00b-4bfa-4e03-bc8e-9a1da19833e0'
+PAT_NAME = "API_Call"
+PAT_SECRET = "sXXXXXXXXXXXXXXXXXXXZ0MwXXXXXXXXXXXXXXX4"
 
-# Create a session to maintain cookies
-session = requests.Session()
+# Set up authentication
+tableau_auth = TSC.PersonalAccessTokenAuth(
+    PAT_NAME,
+    PAT_SECRET,
+    site_id=SITE_ID
+)
 
-# 1. First get the login page to obtain the authenticity token
-login_url = f'{TABLEAU_URL}/views/WhoHasSeen?view_id=30900'
-response = session.get(login_url)
-soup = BeautifulSoup(response.text, 'html.parser')
+server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=True)
+server.add_http_options({'verify': False})  # Only for testing environments
 
-# 2. Perform login (this is Tableau-specific authentication flow)
-auth_data = {
-    'username': USERNAME,
-    'password': PASSWORD,
-    'rememberMe': 'false'
-}
+try:
+    print(f"Signing in to {TABLEAU_SERVER_URL}...")
+    with server.auth.sign_in(tableau_auth):
+        print("Authentication successful")
 
-login_response = session.post(f'{TABLEAU_URL}/auth/login', data=auth_data)
-if 'error' in login_response.text:
-    raise Exception("Login failed")
+        # Get the view reference
+        view = server.views.get_by_id(VIEW_ID)
+        print(f"Accessing view: {view.name}")
 
-# 3. Access the protected view
-view_response = session.get(f'{TABLEAU_URL}{VIEW_URL}')
+        # Get view usage statistics
+        usage_endpoint = f"views/{VIEW_ID}/usage"
+        response = server._session.get(
+            url=server.baseurl + usage_endpoint,
+            headers={'Accept': 'application/json'}
+        )
+        response.raise_for_status()
+        
+        usage_data = response.json().get('usage', [])
+        print(f"Found {len(usage_data)} usage records")
 
-# 4. Parse the data (this will depend on the actual page structure)
-soup = BeautifulSoup(view_response.text, 'html.parser')
-table = soup.find('table', {'class': 'tab-widget'})  # Update class based on actual page
+        # Prepare CSV output
+        csv_file = 'view_usage_report.csv'
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            # Write header
+            writer.writerow([
+                'User Name', 
+                'User Email', 
+                'Last Viewed', 
+                'Total Views'
+            ])
+            
+            # Write data rows
+            for entry in usage_data:
+                writer.writerow([
+                    entry.get('user', {}).get('name', 'N/A'),
+                    entry.get('user', {}).get('email', 'N/A'),
+                    entry.get('lastViewedAt', 'N/A'),
+                    entry.get('totalViews', 0)
+                ])
+        
+        print(f"Successfully exported data to {csv_file}")
 
-# 5. Extract and save data
-if table:
-    headers = [th.text.strip() for th in table.find_all('th')]
-    rows = []
-    
-    for row in table.find_all('tr'):
-        cols = row.find_all('td')
-        if cols:
-            rows.append([col.text.strip() for col in cols])
-    
-    with open('tableau_data.csv', 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
-        writer.writerows(rows)
-    print("Data saved successfully")
-else:
-    print("No table found on the page")
+except TSC.ServerResponseError as e:
+    print(f"Tableau API Error: {e}")
+except Exception as e:
+    print(f"General Error: {e}")
+finally:
+    if 'server' in locals() and server.auth.is_signed_in():
+        server.auth.sign_out()
+        print("Logged out from Tableau Server")
