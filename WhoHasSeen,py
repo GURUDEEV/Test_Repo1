@@ -1132,3 +1132,277 @@ finally:
     </script>
 </body>
 </html>
+--------------------------
+---------------------------
+
+
+
+
+.env File:
+
+Create this file in the tableau_data_downloader directory to securely store your credentials.
+
+# .env
+TABLEAU_SERVER_URL_PROD=https://insights.citigroup.net/
+TABLEAU_PAT_NAME_PROD=YourProdPatName
+TABLEAU_PAT_SECRET_PROD=YourProdPatSecret
+TABLEAU_SITE_ID_PROD="" # Usually empty string for Default site, otherwise site name/id
+
+TABLEAU_SERVER_URL_UAT=https://uat.insights.citigroup.net/
+TABLEAU_PAT_NAME_UAT=YourUatPatName
+TABLEAU_PAT_SECRET_UAT=YourUatPatSecret
+TABLEAU_SITE_ID_UAT="" # Usually empty string for Default site, otherwise site name/id
+
+# --- View Details ---
+# You might need to find the exact names/paths via Tableau Server UI or REST API
+WORKBOOK_NAME=showadminview
+VIEW_NAME=WhoHasSeen?
+
+# --- Filter Details ---
+FILTER_FIELD_NAME=View Name
+FILTER_VALUE=Release Pulse Dashboard
+Use code with caution.
+Dotenv
+4. templates/index.html File:
+
+This is a much simpler HTML page, just providing buttons to trigger the backend download.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Data Download (Python Backend)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1, h2 { margin-bottom: 15px; }
+        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .button-group { margin-top: 20px; }
+        button { padding: 10px 15px; font-size: 1em; cursor: pointer; margin-right: 10px; }
+        .message { margin-top: 15px; padding: 10px; border-radius: 4px; }
+        .error { background-color: #fee; color: #a00; border: 1px solid #fcc; }
+        .info { background-color: #eef; color: #339; border: 1px solid #ccf; }
+        .message:empty { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tableau Data Download</h1>
+        <p>Click a button to download the filtered data ('{{ filter_value }}') for the '{{ view_name }}' view from the specified environment.</p>
+
+        <!-- Display messages from Flask flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="button-group">
+            <form action="{{ url_for('download_data') }}" method="post" style="display: inline;">
+                <input type="hidden" name="environment" value="prod">
+                <button type="submit">Download PROD Data (Excel)</button>
+            </form>
+            <form action="{{ url_for('download_data') }}" method="post" style="display: inline;">
+                <input type="hidden" name="environment" value="uat">
+                <button type="submit">Download UAT Data (Excel)</button>
+            </form>
+        </div>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #555;">
+            Note: This process connects to Tableau Server via the backend to retrieve and filter the data. You will not see the interactive visualization here.
+        </p>
+    </div>
+</body>
+</html>
+Use code with caution.
+Html
+5. app.py File:
+
+import os
+import io
+import pandas as pd
+import tableauserverclient as TSC
+from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+app = Flask(__name__)
+# Secret key needed for flashing messages
+app.secret_key = os.urandom(24)
+
+# --- Configuration from Environment Variables ---
+CONFIG = {
+    'prod': {
+        'server_url': os.getenv('TABLEAU_SERVER_URL_PROD'),
+        'pat_name': os.getenv('TABLEAU_PAT_NAME_PROD'),
+        'pat_secret': os.getenv('TABLEAU_PAT_SECRET_PROD'),
+        'site_id': os.getenv('TABLEAU_SITE_ID_PROD', ''), # Default to empty string if not set
+    },
+    'uat': {
+        'server_url': os.getenv('TABLEAU_SERVER_URL_UAT'),
+        'pat_name': os.getenv('TABLEAU_PAT_NAME_UAT'),
+        'pat_secret': os.getenv('TABLEAU_PAT_SECRET_UAT'),
+        'site_id': os.getenv('TABLEAU_SITE_ID_UAT', ''), # Default to empty string if not set
+    },
+    'view': {
+        'workbook_name': os.getenv('WORKBOOK_NAME'),
+        'view_name': os.getenv('VIEW_NAME'),
+    },
+    'filter': {
+        'field_name': os.getenv('FILTER_FIELD_NAME'),
+        'value': os.getenv('FILTER_VALUE'),
+    }
+}
+
+def get_filtered_view_data(environment: str) -> pd.DataFrame | None:
+    """
+    Connects to Tableau Server, finds the view, applies the filter,
+    and returns the data as a Pandas DataFrame.
+    Returns None on error.
+    """
+    cfg = CONFIG.get(environment)
+    view_cfg = CONFIG.get('view')
+    filter_cfg = CONFIG.get('filter')
+
+    if not all([cfg, view_cfg, filter_cfg,
+                cfg.get('server_url'), cfg.get('pat_name'), cfg.get('pat_secret'),
+                view_cfg.get('workbook_name'), view_cfg.get('view_name'),
+                filter_cfg.get('field_name'), filter_cfg.get('value')]):
+        flash(f"Configuration error for environment '{environment}'. Check .env file.", "error")
+        app.logger.error(f"Configuration missing for environment '{environment}'")
+        return None
+
+    app.logger.info(f"Attempting connection to {environment.upper()} server: {cfg['server_url']}")
+    tableau_auth = TSC.PersonalAccessTokenAuth(
+        token_name=cfg['pat_name'],
+        personal_access_token=cfg['pat_secret'],
+        site_id=cfg['site_id']
+    )
+    server = TSC.Server(cfg['server_url'], use_server_version=True)
+    server.auth.sign_in(tableau_auth)
+    app.logger.info(f"Signed in successfully to {environment.upper()} server.")
+
+    try:
+        with server.auth.sign_in(tableau_auth):
+            app.logger.info(f"Finding view: Workbook='{view_cfg['workbook_name']}', View='{view_cfg['view_name']}'")
+
+            # Find the view
+            # Note: Finding views by name can be tricky if names are not unique.
+            # Using LUID is more reliable if you know it.
+            req_option = TSC.RequestOptions(pagesize=1000)
+            all_views, _ = server.views.get(req_option)
+            target_view = None
+            for view in all_views:
+                 # Attempt to get workbook name (might require populating parent workbook)
+                try:
+                    if not view.workbook_id: continue # Skip if no workbook id
+                    workbook_item = server.workbooks.get_by_id(view.workbook_id)
+                    wb_name = workbook_item.name
+                    # app.logger.debug(f"Checking view: {view.name} in Workbook: {wb_name}")
+                    if view.name == view_cfg['view_name'] and wb_name == view_cfg['workbook_name']:
+                        target_view = view
+                        app.logger.info(f"Found target view: ID={target_view.id}, Name={target_view.name}")
+                        break
+                except Exception as wb_err:
+                     app.logger.warning(f"Could not get workbook details for view {view.name}: {wb_err}")
+                     continue # Skip if we can't verify the workbook
+
+            if not target_view:
+                flash(f"View '{view_cfg['view_name']}' in Workbook '{view_cfg['workbook_name']}' not found on {environment.upper()} server.", "error")
+                app.logger.error(f"View not found: {view_cfg['workbook_name']}/{view_cfg['view_name']}")
+                return None
+
+            # Prepare filter options
+            # Using vf_<FieldName> format for CSV export filter
+            csv_req_option = TSC.CSVRequestOptions(maxage=5) # Cache results for 5 mins
+            csv_req_option.vf(filter_cfg['field_name'], filter_cfg['value'])
+            app.logger.info(f"Requesting CSV data for view {target_view.id} with filter: {filter_cfg['field_name']}='{filter_cfg['value']}'")
+
+            # Get filtered data as CSV
+            server.views.populate_csv(target_view, csv_req_option)
+
+            # Decode CSV data (it's bytes) and read into Pandas DataFrame
+            csv_data = b"".join([chunk for chunk in target_view.csv])
+            if not csv_data:
+                 flash(f"No data returned for the view '{view_cfg['view_name']}' with the specified filter on {environment.upper()}.", "info")
+                 app.logger.warning("No CSV data returned from populate_csv")
+                 return pd.DataFrame() # Return empty dataframe
+
+            df = pd.read_csv(io.BytesIO(csv_data))
+            app.logger.info(f"Successfully retrieved and parsed {len(df)} rows of data.")
+            return df
+
+    except TSC.ServerResponseError as e:
+        flash(f"Tableau Server Error ({environment.upper()}): {e}", "error")
+        app.logger.error(f"Tableau Server Error: {e}", exc_info=True)
+        return None
+    except Exception as e:
+        flash(f"An unexpected error occurred ({environment.upper()}): {e}", "error")
+        app.logger.error(f"Unexpected error: {e}", exc_info=True)
+        return None
+    finally:
+        # Sign out (optional but good practice)
+        try:
+            server.auth.sign_out()
+            app.logger.info(f"Signed out from {environment.upper()} server.")
+        except Exception:
+             app.logger.warning("Error during sign out.", exc_info=True)
+
+
+@app.route('/')
+def index():
+    """Renders the main page."""
+    return render_template('index.html',
+                           view_name=CONFIG['view']['view_name'],
+                           filter_value=CONFIG['filter']['value'])
+
+@app.route('/download', methods=['POST'])
+def download_data():
+    """Handles the download request."""
+    environment = request.form.get('environment') # 'prod' or 'uat'
+    if not environment or environment not in CONFIG:
+        flash("Invalid environment specified.", "error")
+        return redirect(url_for('index'))
+
+    app.logger.info(f"Download request received for environment: {environment}")
+    df = get_filtered_view_data(environment)
+
+    if df is None:
+        # Error occurred, message flashed in get_filtered_view_data
+        return redirect(url_for('index'))
+    elif df.empty:
+         # No data found, message flashed in get_filtered_view_data
+         return redirect(url_for('index'))
+
+
+    # --- Create Excel File in Memory ---
+    try:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Filtered Data')
+        output.seek(0)
+
+        filename = f"{environment}_{CONFIG['view']['view_name']}_filtered_data.xlsx"
+        app.logger.info(f"Prepared Excel file '{filename}' for download.")
+
+        return Response(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    except Exception as e:
+         flash(f"Error generating Excel file: {e}", "error")
+         app.logger.error(f"Error generating excel file: {e}", exc_info=True)
+         return redirect(url_for('index'))
+
+
+if __name__ == '__main__':
+    # Set up basic logging
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    # Run the Flask app
+    # Use host='0.0.0.0' to make it accessible on your network if running in a VM/container
+    app.run(debug=True, host='0.0.0.0', port=5000) # Turn debug=False for production
