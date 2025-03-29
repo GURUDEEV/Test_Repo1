@@ -421,3 +421,192 @@ finally:
     </script>
 </body>
 </html>
+---------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Visualization Download</title>
+    <!-- No need for xlsx.js if using the API's export function -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
+    <style>
+        body { font-family: sans-serif; }
+        .tab {
+            display: inline-block;
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-bottom: none; /* For better tab look */
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0; /* Rounded top corners */
+        }
+        .tab.active {
+            background-color: #fff; /* Active tab matches background */
+            border-bottom: 1px solid #fff; /* Hide bottom border */
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 0 5px 5px 5px; /* Rounded corners except top-left */
+        }
+        .tab-content.active {
+            display: block;
+        }
+        button {
+            padding: 8px 15px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+        /* Optional: Style to indicate button is disabled */
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tableau Data Export</h1>
+
+    <div>
+        <div class="tab active" id="prod-tab" data-target="prod-content" data-viz-id="tableau-viz-prod">PROD</div>
+        <div class="tab" id="uat-tab" data-target="uat-content" data-viz-id="tableau-viz-uat">UAT</div>
+    </div>
+
+    <div id="prod-content" class="tab-content active">
+        <h2>PROD Environment</h2>
+        <p>Loading PROD Visualization...</p>
+        <!-- Ensure unique IDs if you might have more embeds later -->
+        <tableau-viz
+            id='tableau-viz-prod'
+            src='https://insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+        </tableau-viz>
+        <button id="save-prod-data" disabled>Export PROD View to Excel</button>
+    </div>
+
+    <div id="uat-content" class="tab-content">
+        <h2>UAT Environment</h2>
+        <p>Loading UAT Visualization...</p>
+        <tableau-viz
+            id='tableau-viz-uat'
+            src='https://uat.insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+        </tableau-viz>
+        <button id="save-uat-data" disabled>Export UAT View to Excel</button>
+    </div>
+
+    <!-- Load Tableau Embedding API v3 -->
+    <script type='module' src='https://insights.citigroup.net/javascripts/api/tableau.embedding.3.latest.min.js'></script>
+
+    <script type="module">
+        // Get references to elements
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const prodVizEl = document.getElementById('tableau-viz-prod');
+        const uatVizEl = document.getElementById('tableau-viz-uat');
+        const prodButton = document.getElementById('save-prod-data');
+        const uatButton = document.getElementById('save-uat-data');
+
+        // --- Tab Switching Logic ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Deactivate all tabs and content
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                // Activate clicked tab and corresponding content
+                tab.classList.add('active');
+                const targetContentId = tab.getAttribute('data-target');
+                document.getElementById(targetContentId).classList.add('active');
+
+                // Optional: Re-enable the button for the now active viz,
+                // but it's better to rely on the 'firstinteractive' event
+                // const vizId = tab.getAttribute('data-viz-id');
+                // const vizEl = document.getElementById(vizId);
+                // const button = document.querySelector(`[data-viz-id="${vizId}"] ~ button`);
+                // if (vizEl && vizEl.viz && button) { // Check if viz object exists
+                //     button.disabled = false;
+                // }
+            });
+        });
+
+        // --- Tableau Viz Initialization and Export Logic ---
+
+        // Function to handle the export action
+        async function exportVizDataToExcel(vizElement, buttonElement) {
+            if (!vizElement || !vizElement.viz) {
+                console.error("Viz object not found for element:", vizElement.id);
+                alert("Error: Visualization is not ready. Please wait and try again.");
+                return;
+            }
+
+            console.log(`Attempting to export data for viz: ${vizElement.id}`);
+            buttonElement.textContent = 'Exporting...'; // Provide user feedback
+            buttonElement.disabled = true;
+
+            try {
+                // Use the API's built-in function to export the current sheet's crosstab data
+                await vizElement.viz.exportCrossTabToExcelAsync();
+                console.log(`Export successful for viz: ${vizElement.id}`);
+                alert(`Data for ${vizElement.id} exported successfully! Check your browser downloads.`);
+            } catch (error) {
+                console.error(`Error exporting data for viz ${vizElement.id}:`, error);
+                alert(`Error exporting data for ${vizElement.id}. See console for details.`);
+            } finally {
+                 // Reset button state regardless of success/failure
+                 buttonElement.textContent = `Export ${vizElement.id.includes('prod') ? 'PROD' : 'UAT'} View to Excel`;
+                 buttonElement.disabled = false;
+            }
+        }
+
+        // --- Event Listeners for Viz Loading and Button Clicks ---
+
+        // Wait for the PROD viz to be interactive, then enable its button
+        prodVizEl.addEventListener('firstinteractive', (event) => {
+            console.log("PROD Viz is interactive:", event.detail);
+            // Remove the "Loading..." message
+            const loadingMessage = prodVizEl.previousElementSibling;
+             if (loadingMessage && loadingMessage.tagName === 'P') {
+                 loadingMessage.style.display = 'none';
+            }
+            prodButton.disabled = false; // Enable the button
+            // The viz object is now available at prodVizEl.viz
+        });
+
+        // Wait for the UAT viz to be interactive, then enable its button
+        uatVizEl.addEventListener('firstinteractive', (event) => {
+            console.log("UAT Viz is interactive:", event.detail);
+             // Remove the "Loading..." message
+             const loadingMessage = uatVizEl.previousElementSibling;
+             if (loadingMessage && loadingMessage.tagName === 'P') {
+                 loadingMessage.style.display = 'none';
+            }
+            uatButton.disabled = false; // Enable the button
+            // The viz object is now available at uatVizEl.viz
+        });
+
+        // Add click listener for the PROD export button
+        prodButton.addEventListener('click', () => {
+            exportVizDataToExcel(prodVizEl, prodButton);
+        });
+
+        // Add click listener for the UAT export button
+        uatButton.addEventListener('click', () => {
+            exportVizDataToExcel(uatVizEl, uatButton);
+        });
+
+        // --- Initial State ---
+        // No need to manually call click, the HTML sets the initial active tab.
+
+    </script>
+</body>
+</html>
