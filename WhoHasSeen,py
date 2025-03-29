@@ -848,3 +848,287 @@ finally:
     </script>
 </body>
 </html>
+-------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Visualization Download with Filter</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .tab-container { margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        .tab {
+            display: inline-block; padding: 10px 15px; cursor: pointer;
+            background-color: #f1f1f1; border: 1px solid #ccc;
+            border-bottom: none; margin-right: 5px; border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #fff; border-bottom: 1px solid #fff; font-weight: bold;
+            position: relative; top: 1px; /* Makes active tab align with content border */
+        }
+        .tab-content {
+            display: none; border: 1px solid #ccc; padding: 20px;
+            border-radius: 0 5px 5px 5px;
+        }
+        .tab-content.active { display: block; }
+        button { padding: 8px 15px; margin-top: 15px; cursor: pointer; font-size: 1em;}
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .status-message { margin-top: 10px; padding: 10px; border-radius: 4px; }
+        .loading-message { background-color: #eef; color: #339; border: 1px solid #ccf; }
+        .error-message { background-color: #fee; color: #a00; border: 1px solid #fcc; font-weight: bold; }
+        .error-message:empty { display: none; } /* Hide error div if empty */
+        .success-message { background-color: #efe; color: #080; border: 1px solid #cfc; }
+        .success-message:empty { display: none; }
+
+    </style>
+</head>
+<body>
+    <h1>Tableau Data Export</h1>
+    <p>This page embeds Tableau views, applies a filter, and allows exporting the filtered view to Excel.</p>
+
+    <div class="tab-container">
+        <div class="tab active" id="prod-tab" data-target="prod-content" data-viz-id="tableau-viz-prod">PROD</div>
+        <div class="tab" id="uat-tab" data-target="uat-content" data-viz-id="tableau-viz-uat">UAT</div>
+    </div>
+
+    <!-- PROD Content -->
+    <div id="prod-content" class="tab-content active">
+        <h2>PROD Environment: Who Has Seen View?</h2>
+        <div class="status-message loading-message" id="prod-loading">Loading PROD Visualization...</div>
+        <div class="status-message error-message" id="prod-error"></div>
+        <div class="status-message success-message" id="prod-success"></div>
+        <tableau-viz
+            id='tableau-viz-prod'
+            src='https://insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+                <!-- Optional Parameter for Authentication (if needed & supported by your setup) -->
+                <!-- <viz-filter name="Username" value="SpecificUser"></viz-filter> -->
+        </tableau-viz>
+        <button id="save-prod-data" disabled>Export Filtered PROD View to Excel</button>
+    </div>
+
+    <!-- UAT Content -->
+    <div id="uat-content" class="tab-content">
+        <h2>UAT Environment: Who Has Seen View?</h2>
+        <div class="status-message loading-message" id="uat-loading">Loading UAT Visualization...</div>
+        <div class="status-message error-message" id="uat-error"></div>
+        <div class="status-message success-message" id="uat-success"></div>
+        <tableau-viz
+            id='tableau-viz-uat'
+            src='https://uat.insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+        </tableau-viz>
+        <button id="save-uat-data" disabled>Export Filtered UAT View to Excel</button>
+    </div>
+
+    <!-- Load Tableau Embedding API v3 -->
+    <script type='module' src='https://insights.citigroup.net/javascripts/api/tableau.embedding.3.latest.min.js'></script>
+
+    <script type="module">
+        // --- Configuration ---
+        // IMPORTANT: Verify this exact field name in your Tableau workbook! Case-sensitive.
+        const FILTER_FIELD_NAME = 'View Name';
+        const FILTER_VALUE = 'Release Pulse Dashboard';
+
+        // --- Element References ---
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const prodVizEl = document.getElementById('tableau-viz-prod');
+        const uatVizEl = document.getElementById('tableau-viz-uat');
+        const prodButton = document.getElementById('save-prod-data');
+        const uatButton = document.getElementById('save-uat-data');
+        const prodLoading = document.getElementById('prod-loading');
+        const uatLoading = document.getElementById('uat-loading');
+        const prodErrorEl = document.getElementById('prod-error');
+        const uatErrorEl = document.getElementById('uat-error');
+        const prodSuccessEl = document.getElementById('prod-success');
+        const uatSuccessEl = document.getElementById('uat-success');
+
+        // --- Tab Switching Logic ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Deactivate all
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                // Activate clicked
+                tab.classList.add('active');
+                const targetContent = document.getElementById(tab.getAttribute('data-target'));
+                 if (targetContent) {
+                    targetContent.classList.add('active');
+                 } else {
+                    console.error("Target content not found for tab:", tab.id);
+                 }
+            });
+        });
+
+        // --- Helper Function to Apply Filter ---
+        async function applyInitialFilter(vizElement, errorElement, successElement) {
+            errorElement.textContent = ''; // Clear previous errors
+            successElement.textContent = ''; // Clear previous success
+
+            // Check if viz object exists *before* attempting filter
+             if (!vizElement || !vizElement.viz) {
+                 console.warn(`Filter Warning: Viz object not ready for ${vizElement.id} when attempting filter.`);
+                 // Don't set error here, let firstinteractive handle the critical failure if needed
+                 return false; // Indicate filter could not be applied yet
+            }
+            const viz = vizElement.viz;
+
+            // Use a slight delay if necessary, but often not needed with proper checks
+            // await new Promise(resolve => setTimeout(resolve, 300));
+
+            try {
+                const workbook = viz.workbook;
+                const activeSheet = workbook.activeSheet;
+
+                if (!activeSheet || !activeSheet.applyFilterAsync) { // Check if sheet and method exist
+                    console.error(`Filter Error: Could not get active sheet or applyFilterAsync method for ${vizElement.id}. Filtering skipped.`);
+                    errorElement.textContent = `Warning: Could not find the active sheet in ${vizElement.id} to apply filter. Check if the view loaded correctly.`;
+                    return false; // Indicate failure
+                }
+
+                console.log(`Applying filter on ${vizElement.id}: Field='${FILTER_FIELD_NAME}', Value='${FILTER_VALUE}'`);
+                successElement.textContent = `Applying filter: '${FILTER_VALUE}'...`; // Show applying status
+
+                await activeSheet.applyFilterAsync(
+                    FILTER_FIELD_NAME,
+                    [FILTER_VALUE], // Value MUST be in an array
+                    tableau.FilterUpdateType.Replace // Or .Add / .All depending on desired behavior
+                );
+
+                console.log(`Filter applied successfully for ${vizElement.id}.`);
+                successElement.textContent = `Filter '${FILTER_VALUE}' applied successfully.`;
+                return true; // Indicate success
+
+            } catch (filterError) {
+                console.error(`Error applying filter for ${vizElement.id}:`, filterError);
+                errorElement.textContent = `Error applying filter: ${filterError.message || filterError}. Export will show unfiltered data for this field. Check if field '${FILTER_FIELD_NAME}' exists on this sheet.`;
+                successElement.textContent = ''; // Clear success message on error
+                return false; // Indicate failure
+            }
+        }
+
+
+        // --- Helper Function for Export ---
+        async function exportVizDataToExcel(vizElement, buttonElement, errorElement, successElement) {
+            errorElement.textContent = ''; // Clear previous errors
+            successElement.textContent = '';
+
+            // Critical Check: Ensure viz object exists RIGHT BEFORE export attempt
+            if (!vizElement || !vizElement.viz) {
+                console.error(`Export Error: Viz object not found for element: ${vizElement.id} at time of export click.`);
+                errorElement.textContent = `Error: Cannot export because visualization ${vizElement.id} is not ready or failed to load correctly. Please reload.`;
+                alert(`Cannot Export: Visualization ${vizElement.id} is not ready. Please wait for it to load or reload the page.`);
+                buttonElement.disabled = true; // Keep disabled if failed fundamentally
+                return;
+            }
+
+            console.log(`Attempting to export data for viz: ${vizElement.id}`);
+            buttonElement.textContent = 'Exporting... Please Wait';
+            buttonElement.disabled = true;
+            successElement.textContent = 'Preparing Excel export...';
+
+            try {
+                // exportCrossTabToExcelAsync exports the *currently active sheet*
+                await vizElement.viz.exportCrossTabToExcelAsync();
+                console.log(`Export command sent successfully for viz: ${vizElement.id}`);
+                successElement.textContent = `Export to Excel initiated! Check your browser downloads.`;
+                // No alert needed, browser handles the download.
+            } catch (error) {
+                console.error(`Error exporting data for viz ${vizElement.id}:`, error);
+                errorElement.textContent = `Export failed for ${vizElement.id}: ${error.message || error}. Check browser console and ensure pop-ups aren't blocked.`;
+                alert(`Error exporting data for ${vizElement.id}. See message on page or console for details.`);
+                successElement.textContent = ''; // Clear success message on error
+            } finally {
+                 // Reset button state. Only re-enable if the viz object is *still* valid.
+                 const vizIdName = vizElement.id.includes('prod') ? 'PROD' : 'UAT';
+                 buttonElement.textContent = `Export Filtered ${vizIdName} View to Excel`;
+                 buttonElement.disabled = !vizElement.viz; // Re-enable only if viz object is still there
+                 // Clear the 'exporting' status message after a short delay
+                 setTimeout(() => {
+                    if (successElement.textContent.startsWith('Export to Excel initiated')) {
+                         successElement.textContent = ''; // Clear temporary success message
+                    }
+                 }, 5000); // Clear after 5 seconds
+            }
+        }
+
+        // --- Function to Handle Viz Initialization ---
+        async function initializeViz(vizElement, loadingElement, errorElement, successElement, buttonElement) {
+             console.log(`Event: firstinteractive received for ${vizElement.id}`);
+             loadingElement.style.display = 'none'; // Hide loading message
+             errorElement.textContent = ''; // Clear previous errors
+
+             // CRITICAL CHECK: Confirm the .viz object is attached now
+             if (!vizElement.viz) {
+                 console.error(`CRITICAL ERROR: viz object NOT found on ${vizElement.id} even after firstinteractive event.`);
+                 errorElement.textContent = `Critical Error: ${vizElement.id.includes('prod') ? 'PROD' : 'UAT'} Visualization component failed final initialization. Cannot interact or export. Please reload or check console.`;
+                 buttonElement.disabled = true; // Ensure button stays disabled
+                 return; // Stop further processing for this viz
+             }
+
+             console.log(`${vizElement.id}: Viz object found. Proceeding with filter.`);
+             successElement.textContent = 'Visualization loaded. Applying initial filter...';
+
+             // Apply the filter *after* interactive and confirming .viz exists
+             const filterSuccess = await applyInitialFilter(vizElement, errorElement, successElement);
+
+             // Enable the button now that viz is ready (even if filter failed, export might still work)
+             buttonElement.disabled = false;
+             console.log(`${vizElement.id} export button enabled.`);
+             if (!filterSuccess && !errorElement.textContent) {
+                 // If filter failed silently, add a note.
+                 errorElement.textContent = "Note: Initial filter could not be applied. Export will show unfiltered data for the filtered field.";
+             } else if (filterSuccess) {
+                 // If filter worked, update success message
+                 successElement.textContent = `Visualization ready. Filter '${FILTER_VALUE}' applied.`;
+             }
+        }
+
+
+        // --- Event Listeners ---
+
+        // PROD Viz Handling
+        prodVizEl.addEventListener('firstinteractive', (event) => {
+             initializeViz(prodVizEl, prodLoading, prodErrorEl, prodSuccessEl, prodButton);
+        });
+        prodVizEl.addEventListener('vizloaderror', (event) => {
+             console.error("--- PROD Viz Load Error ---", event.detail);
+             prodLoading.style.display = 'none';
+             prodErrorEl.textContent = `Failed to load PROD visualization: ${event.detail?.message || 'Unknown error'}. Code: ${event.detail?.errorCode || 'N/A'}. Check URL, permissions, and network.`;
+             prodButton.disabled = true;
+             prodSuccessEl.textContent = '';
+        });
+
+        // UAT Viz Handling
+        uatVizEl.addEventListener('firstinteractive', (event) => {
+             initializeViz(uatVizEl, uatLoading, uatErrorEl, uatSuccessEl, uatButton);
+        });
+        uatVizEl.addEventListener('vizloaderror', (event) => {
+             console.error("--- UAT Viz Load Error ---", event.detail);
+             uatLoading.style.display = 'none';
+             uatErrorEl.textContent = `Failed to load UAT visualization: ${event.detail?.message || 'Unknown error'}. Code: ${event.detail?.errorCode || 'N/A'}. Check URL, permissions, and network.`;
+             uatButton.disabled = true;
+             uatSuccessEl.textContent = '';
+        });
+
+        // Button Click Listeners
+        prodButton.addEventListener('click', () => {
+            exportVizDataToExcel(prodVizEl, prodButton, prodErrorEl, prodSuccessEl);
+        });
+        uatButton.addEventListener('click', () => {
+            exportVizDataToExcel(uatVizEl, uatButton, uatErrorEl, uatSuccessEl);
+        });
+
+        // --- Initial Tab State (already set by 'active' class in HTML) ---
+        console.log("Page script loaded. Waiting for Tableau visualizations...");
+
+    </script>
+</body>
+</html>
