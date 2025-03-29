@@ -1,0 +1,27 @@
+import tableauserverclient as TSC
+import os
+
+# --- Configuration ---
+TABLEAU_SERVER_URL = "https://uat.insights.xxgroups.net"
+PAT_NAME = "your_pat_name" # Replace with the name you created
+PAT_SECRET = "your_pat_value" # Replace with the secret you saved
+SITE_ID = "GCT"  # *** UPDATED SITE ID ***
+
+VIEW_NAME_TO_FIND = "Who Has Seen This View?" # *** STILL NEED TO CONFIRM THIS NAME/PATH ***
+OUTPUT_FILENAME_CSV = "WhoHasSeenReport_API.csv"
+
+# --- Code ---
+# Use PAT
+tableau_auth = TSC.PersonalAccessTokenAuth(PAT_NAME, PAT_SECRET, site_id=SITE_ID) # *** Pass SITE_ID here ***
+server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=True)
+server.add_http_options({'verify': False}) # For UAT SSL certs
+
+try:
+    print(f"Signing in to site '{SITE_ID}' on {TABLEAU_SERVER_URL}...")
+    with server.auth.sign_in(tableau_auth):
+        print("Sign in successful.")
+
+        # ... rest of the script (find view, populate_csv/pdf/excel) ...
+
+except Exception as e:
+    print(f"An error occurred: {e}")
