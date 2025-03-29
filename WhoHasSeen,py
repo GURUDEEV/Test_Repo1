@@ -51,3 +51,53 @@ except TSC.ServerResponseError as e:
     print(f"An error occurred: {e}")
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
+------------------------------
+import tableauserverclient as TSC
+import json
+import csv
+
+# ... [Keep your existing connection details here] ...
+
+try:
+    print(f"Signing in to site '{SITE_ID}' on {TABLEAU_SERVER_URL}...")
+    with server.auth.sign_in(tableau_auth):
+        print("Sign in successful.")
+
+        # ... [Keep your existing workbook/view retrieval code] ...
+
+        # Get usage statistics for the view
+        actual_site_id = server.auth.site_id
+        url = f"{server.baseurl}/api/{server.version}/sites/{actual_site_id}/views/{VIEW_ID}/usage"
+        print(f"Requesting view usage data from: {url}")
+
+        headers = {'Accept': 'application/json'}
+        response = server._session.get(url, headers=headers)
+        response.raise_for_status()
+        usage_data = response.json()
+
+        # Print raw JSON for inspection (optional)
+        # print(json.dumps(usage_data, indent=2))
+
+        # Convert to CSV
+        csv_filename = 'view_usage.csv'
+        with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
+            if 'usage' in usage_data and len(usage_data['usage']) > 0:
+                fieldnames = ['user_name', 'last_viewed', 'total_views']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for event in usage_data['usage']:
+                    user_info = event.get('user', {})
+                    writer.writerow({
+                        'user_name': user_info.get('name', 'Unknown'),
+                        'last_viewed': event.get('lastViewedAt', ''),
+                        'total_views': event.get('totalViews', 0)
+                    })
+                print(f"Successfully exported {len(usage_data['usage'])} records to {csv_filename}")
+            else:
+                print("No usage data found.")
+
+except TSC.ServerResponseError as e:
+    print(f"Tableau API error: {e}")
+except Exception as e:
+    print(f"General error: {e}")
