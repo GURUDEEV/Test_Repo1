@@ -297,3 +297,127 @@ finally:
     </script>
 </body>
 </html>
+
+------------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        .tab {
+            display: inline-block;
+            padding: 10px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #ccc;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        tableau-viz {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="tab active" id="prod-tab">PROD</div>
+        <div class="tab" id="uat-tab">UAT</div>
+    </div>
+    <div id="prod-content" class="tab-content active">
+        <tableau-viz id='tableau-viz-prod' src='https://insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?' toolbar='bottom'></tableau-viz>
+        <button id="save-prod-data">Save PROD Data</button>
+    </div>
+    <div id="uat-content" class="tab-content">
+        <tableau-viz id='tableau-viz-uat' src='https://uat.insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?' toolbar='bottom'></tableau-viz>
+        <button id="save-uat-data">Save UAT Data</button>
+    </div>
+
+    <script type='module'>
+        import { Workbook } from 'https://insights.citigroup.net/javascripts/api/tableau.embedding.3.latest.min.js';
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Tab switching functionality
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to selected tab and content
+                    tab.classList.add('active');
+                    const contentId = tab.id.replace('-tab', '-content');
+                    document.getElementById(contentId).classList.add('active');
+                });
+            });
+
+            // Initialize workbooks
+            let prodWorkbook, uatWorkbook;
+
+            // Initialize PROD viz
+            const prodViz = document.getElementById('tableau-viz-prod');
+            prodViz.addEventListener('load', async (event) => {
+                prodWorkbook = event.detail.viz.workbook;
+                console.log('PROD Workbook loaded');
+            });
+
+            // Initialize UAT viz
+            const uatViz = document.getElementById('tableau-viz-uat');
+            uatViz.addEventListener('load', async (event) => {
+                uatWorkbook = event.detail.viz.workbook;
+                console.log('UAT Workbook loaded');
+            });
+
+            // Excel export function
+            async function exportToExcel(workbook, fileName) {
+                try {
+                    const activeSheet = workbook.activeSheet;
+                    if (activeSheet.sheetType === 'WORKSHEET') {
+                        const dataTable = await activeSheet.getUnderlyingDataAsync();
+                        const columns = dataTable.columns.map(col => col.fieldName);
+                        const data = dataTable.data.map(row => 
+                            row.map(cell => cell.formattedValue)
+                        );
+
+                        // Create worksheet
+                        const ws = XLSX.utils.aoa_to_sheet([columns, ...data]);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+                        XLSX.writeFile(wb, fileName);
+                    } else {
+                        alert('Please select a worksheet to export data');
+                    }
+                } catch (error) {
+                    console.error('Export error:', error);
+                    alert('Error exporting data: ' + error.message);
+                }
+            }
+
+            // Event listeners for export buttons
+            document.getElementById('save-prod-data').addEventListener('click', () => {
+                if (prodWorkbook) exportToExcel(prodWorkbook, 'PROD_Data.xlsx');
+                else alert('PROD workbook not loaded yet');
+            });
+
+            document.getElementById('save-uat-data').addEventListener('click', () => {
+                if (uatWorkbook) exportToExcel(uatWorkbook, 'UAT_Data.xlsx');
+                else alert('UAT workbook not loaded yet');
+            });
+        });
+    </script>
+</body>
+</html>
