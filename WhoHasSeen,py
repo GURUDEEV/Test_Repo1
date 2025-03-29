@@ -1,40 +1,31 @@
 import tableauserverclient as TSC
-import os
 
 # --- Configuration ---
 TABLEAU_SERVER_URL = "https://uat.insights.citigroup.net"
-PAT_NAME = "API_Call" # Replace with the name you created
-PAT_SECRET = "sDCBtBCCQwiD2Kg0ZvVPxQ==:7fcZtHwkz6VwQtLZ0MwwRMgaXKvkAeJ4" # Replace with the secret you saved
-SITE_ID = "GCT"  # *** UPDATED SITE ID ***
-
-WORKBOOK_ID = '5186'
-VIEW_NAME_TO_FIND = "Who Has Seen This View?" # *** STILL NEED TO CONFIRM THIS NAME/PATH ***
-OUTPUT_FILENAME_CSV = "WhoHasSeenReport_API.csv"
+PAT_NAME = "API_Call"
+PAT_SECRET = "sDCBtBCCQwiD2Kg0ZvVPxQ==:7fcZtHwkz6VwQtLZ0MwwRMgaXKvkAeJ4"
+SITE_ID = "GCT"  # Confirm this is correct
 
 # --- Code ---
-# Use PAT
-tableau_auth = TSC.PersonalAccessTokenAuth(PAT_NAME, PAT_SECRET, site_id=SITE_ID) # *** Pass SITE_ID here ***
+tableau_auth = TSC.PersonalAccessTokenAuth(PAT_NAME, PAT_SECRET, site_id=SITE_ID)
 server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=True)
-server.add_http_options({'verify': False}) # For UAT SSL certs
+server.add_http_options({'verify': False})
 
 try:
-    print(f"Signing in to site '{SITE_ID}' on {TABLEAU_SERVER_URL}...")
     with server.auth.sign_in(tableau_auth):
-        print("Sign in successful.")
+        print(f"Authenticated to site: {server.auth.site_id}")
 
-        # ... rest of the script (find view, populate_csv/pdf/excel) ...
-        # Get the list of views (dashboards)
-        # Get the workbook by ID
-        workbook = server.workbooks.get_by_id(WORKBOOK_ID)
+        # List all workbooks to verify existence
+        all_workbooks, _ = server.workbooks.get()
+        print("Workbooks in site:")
+        for wb in all_workbooks:
+            print(f"ID: {wb.id}, Name: {wb.name}")
+
+        # If 5186 is valid:
+        workbook = server.workbooks.get_by_id('5186')  # Use string, not int
         print(f"Workbook found: {workbook.name}")
-        
-        # Populate the views for the workbook
-        server.workbooks.populate_views(workbook)
-        
-        print("List of dashboards:")
-        for view in workbook.views:
-            print(f"Name: {view.name}, URL: {view.content_url}")
 
+        # Continue with view extraction...
 
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"Error: {e}")
