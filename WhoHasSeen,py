@@ -610,3 +610,241 @@ finally:
     </script>
 </body>
 </html>
+----------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Visualization Download with Filter</title>
+    <style>
+        body { font-family: sans-serif; }
+        .tab {
+            display: inline-block; padding: 10px 15px; cursor: pointer;
+            background-color: #f1f1f1; border: 1px solid #ccc;
+            border-bottom: none; margin-right: 5px; border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #fff; border-bottom: 1px solid #fff; font-weight: bold;
+        }
+        .tab-content {
+            display: none; border: 1px solid #ccc; padding: 20px;
+            border-radius: 0 5px 5px 5px;
+        }
+        .tab-content.active { display: block; }
+        button { padding: 8px 15px; margin-top: 15px; cursor: pointer; }
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .loading-message { color: gray; font-style: italic; }
+        .error-message { color: red; font-weight: bold; margin-top: 10px;}
+    </style>
+</head>
+<body>
+    <h1>Tableau Data Export</h1>
+
+    <div>
+        <div class="tab active" id="prod-tab" data-target="prod-content" data-viz-id="tableau-viz-prod">PROD</div>
+        <div class="tab" id="uat-tab" data-target="uat-content" data-viz-id="tableau-viz-uat">UAT</div>
+    </div>
+
+    <div id="prod-content" class="tab-content active">
+        <h2>PROD Environment</h2>
+        <p class="loading-message" id="prod-loading">Loading PROD Visualization...</p>
+        <div class="error-message" id="prod-error"></div>
+        <tableau-viz
+            id='tableau-viz-prod'
+            src='https://insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+        </tableau-viz>
+        <button id="save-prod-data" disabled>Export PROD View to Excel</button>
+    </div>
+
+    <div id="uat-content" class="tab-content">
+        <h2>UAT Environment</h2>
+        <p class="loading-message" id="uat-loading">Loading UAT Visualization...</p>
+         <div class="error-message" id="uat-error"></div>
+        <tableau-viz
+            id='tableau-viz-uat'
+            src='https://uat.insights.citigroup.net/vizql/showadminview/views/WhoHasSeen?'
+            width='1000' height='863'
+            toolbar='bottom'
+            hide-tabs>
+        </tableau-viz>
+        <button id="save-uat-data" disabled>Export UAT View to Excel</button>
+    </div>
+
+    <!-- Load Tableau Embedding API v3 -->
+    <script type='module' src='https://insights.citigroup.net/javascripts/api/tableau.embedding.3.latest.min.js'></script>
+
+    <script type="module">
+        // --- Configuration ---
+        // IMPORTANT: Verify these exact names in your Tableau workbook! Case-sensitive.
+        const FILTER_FIELD_NAME = 'View Name';
+        const FILTER_VALUE = 'Release Pulse Dashboard';
+
+        // --- Element References ---
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const prodVizEl = document.getElementById('tableau-viz-prod');
+        const uatVizEl = document.getElementById('tableau-viz-uat');
+        const prodButton = document.getElementById('save-prod-data');
+        const uatButton = document.getElementById('save-uat-data');
+        const prodLoading = document.getElementById('prod-loading');
+        const uatLoading = document.getElementById('uat-loading');
+        const prodErrorEl = document.getElementById('prod-error');
+        const uatErrorEl = document.getElementById('uat-error');
+
+        // --- Tab Switching Logic ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.getAttribute('data-target')).classList.add('active');
+            });
+        });
+
+        // --- Helper Function to Apply Filter ---
+        async function applyInitialFilter(vizElement, errorElement) {
+            // Use a slight delay in case the sheet isn't immediately ready after 'firstinteractive'
+             await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 second delay
+
+            const viz = vizElement.viz; // Get the viz object attached by the API
+            if (!viz) {
+                 console.error(`Filter Error: Viz object not found for ${vizElement.id} even after firstinteractive.`);
+                 errorElement.textContent = `Error: Could not interact with visualization ${vizElement.id}.`;
+                 return false; // Indicate failure
+            }
+
+            try {
+                const workbook = viz.workbook;
+                const activeSheet = workbook.activeSheet; // Assumes the URL loads the sheet you want to filter
+
+                if (!activeSheet) {
+                    console.error(`Filter Error: Could not get active sheet for ${vizElement.id}. Filtering skipped.`);
+                    errorElement.textContent = `Warning: Could not find the active sheet in ${vizElement.id} to apply the filter.`;
+                    return true; // Allow proceeding without filter
+                }
+
+                console.log(`Applying filter on ${vizElement.id}: Field='${FILTER_FIELD_NAME}', Value='${FILTER_VALUE}'`);
+                await activeSheet.applyFilterAsync(
+                    FILTER_FIELD_NAME,
+                    [FILTER_VALUE], // Value MUST be in an array
+                    tableau.FilterUpdateType.Replace // Replace any existing filters on this field
+                );
+                console.log(`Filter applied successfully for ${vizElement.id}.`);
+                errorElement.textContent = ''; // Clear previous errors/warnings
+                return true; // Indicate success
+
+            } catch (filterError) {
+                console.error(`Error applying filter for ${vizElement.id}:`, filterError);
+                errorElement.textContent = `Error applying filter: ${filterError.message || filterError}. Export will show unfiltered data for this field.`;
+                // Depending on requirements, you might want to return false here
+                // and potentially disable the export button if filtering is mandatory.
+                return true; // Allow proceeding even if filter fails
+            }
+        }
+
+
+        // --- Helper Function for Export ---
+        async function exportVizDataToExcel(vizElement, buttonElement, errorElement) {
+            // Explicitly check for the viz object *again* right before export
+            if (!vizElement || !vizElement.viz) {
+                console.error(`Export Error: Viz object not found for element: ${vizElement.id}. Was firstinteractive successful?`);
+                alert(`Error: Visualization ${vizElement.id} is not ready or encountered an error during loading. Please check console messages or reload.`);
+                errorElement.textContent = `Error: Cannot export because visualization ${vizElement.id} failed to load correctly.`;
+                buttonElement.disabled = true; // Keep disabled if it failed
+                return;
+            }
+
+            console.log(`Attempting to export data for viz: ${vizElement.id}`);
+            buttonElement.textContent = 'Exporting...';
+            buttonElement.disabled = true;
+            errorElement.textContent = ''; // Clear previous errors
+
+            try {
+                await vizElement.viz.exportCrossTabToExcelAsync();
+                console.log(`Export successful for viz: ${vizElement.id}`);
+                // No alert needed, browser download starts automatically
+                // Optionally add a success message to the UI if desired
+            } catch (error) {
+                console.error(`Error exporting data for viz ${vizElement.id}:`, error);
+                alert(`Error exporting data for ${vizElement.id}. See console for details. Message: ${error.message || error}`);
+                errorElement.textContent = `Export failed for ${vizElement.id}: ${error.message || error}`;
+            } finally {
+                 buttonElement.textContent = `Export ${vizElement.id.includes('prod') ? 'PROD' : 'UAT'} View to Excel`;
+                 // Re-enable button ONLY if the viz object still exists (it should, unless page was navigated away)
+                 buttonElement.disabled = !vizElement.viz;
+            }
+        }
+
+        // --- Event Listeners for Viz Loading and Button Clicks ---
+
+        // PROD Viz Handling
+        prodVizEl.addEventListener('firstinteractive', async (event) => {
+            console.log("PROD Viz is interactive:", event.detail);
+            prodLoading.style.display = 'none'; // Hide loading message
+            prodErrorEl.textContent = ''; // Clear any previous errors
+
+             // Apply the filter *after* interactive
+             const filterSuccess = await applyInitialFilter(prodVizEl, prodErrorEl);
+
+            // Enable the button only if the viz object exists
+             if (prodVizEl.viz) {
+                prodButton.disabled = false;
+                console.log("PROD export button enabled.");
+            } else {
+                console.error("PROD viz object STILL not found after firstinteractive and filter attempt!");
+                 prodErrorEl.textContent = 'Critical Error: PROD Visualization component failed initialization.';
+                 prodButton.disabled = true; // Ensure it stays disabled
+            }
+        });
+
+        // UAT Viz Handling
+        uatVizEl.addEventListener('firstinteractive', async (event) => {
+            console.log("UAT Viz is interactive:", event.detail);
+            uatLoading.style.display = 'none';
+            uatErrorEl.textContent = '';
+
+            // Apply the filter *after* interactive
+            const filterSuccess = await applyInitialFilter(uatVizEl, uatErrorEl);
+
+            // Enable the button only if the viz object exists
+             if (uatVizEl.viz) {
+                 uatButton.disabled = false;
+                 console.log("UAT export button enabled.");
+            } else {
+                console.error("UAT viz object STILL not found after firstinteractive and filter attempt!");
+                 uatErrorEl.textContent = 'Critical Error: UAT Visualization component failed initialization.';
+                 uatButton.disabled = true; // Ensure it stays disabled
+            }
+        });
+
+        // Add error listeners (optional but helpful for debugging load issues)
+        prodVizEl.addEventListener('vizloaderror', (event) => {
+             console.error("PROD Viz Load Error Event:", event.detail);
+             prodLoading.style.display = 'none';
+             prodErrorEl.textContent = `Failed to load PROD visualization: ${event.detail.message || 'Unknown error'}. Please check permissions and network.`;
+             prodButton.disabled = true;
+        });
+         uatVizEl.addEventListener('vizloaderror', (event) => {
+             console.error("UAT Viz Load Error Event:", event.detail);
+             uatLoading.style.display = 'none';
+             uatErrorEl.textContent = `Failed to load UAT visualization: ${event.detail.message || 'Unknown error'}. Please check permissions and network.`;
+             uatButton.disabled = true;
+        });
+
+
+        // Button Click Listeners
+        prodButton.addEventListener('click', () => {
+            exportVizDataToExcel(prodVizEl, prodButton, prodErrorEl);
+        });
+
+        uatButton.addEventListener('click', () => {
+            exportVizDataToExcel(uatVizEl, uatButton, uatErrorEl);
+        });
+
+    </script>
+</body>
+</html>
