@@ -1,31 +1,53 @@
 import tableauserverclient as TSC
 
-# --- Configuration ---
-TABLEAU_SERVER_URL = "https://uat.insights.citigroup.net"
-PAT_NAME = "API_Call"
-PAT_SECRET = "sDCBtBCCQwiD2Kg0ZvVPxQ==:7fcZtHwkz6VwQtLZ0MwwRMgaXKvkAeJ4"
-SITE_ID = "GCT"  # Confirm this is correct
+# Define your Tableau server connection details
+TABLEAU_SERVER_URL = 'https://uat.insights.citigroup.net'
+SITE_ID = 'GCT'
+WORKBOOK_ID = '93cba8db-8e70-483e-a666-010117f086c6'
+VIEW_ID = '30b0b00b-4bfa-4e03-bc8e-9a1da19833e0'
+PAT_NAME = "API_Call" # Replace with the name you created
+PAT_SECRET = "sDCBtBCCQwiD2Kg0ZvVPxQ==:7fcZtHwkz6VwQtLZ0MwwRMgaXKvkAeJ4" # Replace with the secret you saved
 
-# --- Code ---
+# Use PAT for authentication
 tableau_auth = TSC.PersonalAccessTokenAuth(PAT_NAME, PAT_SECRET, site_id=SITE_ID)
 server = TSC.Server(TABLEAU_SERVER_URL, use_server_version=True)
-server.add_http_options({'verify': False})
+server.version = '3.1'  # Specify the API version
+server.add_http_options({'verify': False})  # For UAT SSL certs
 
 try:
+    print(f"Signing in to site '{SITE_ID}' on {TABLEAU_SERVER_URL}...")
     with server.auth.sign_in(tableau_auth):
-        print(f"Authenticated to site: {server.auth.site_id}")
+        print("Sign in successful.")
 
-        # List all workbooks to verify existence
-        all_workbooks, _ = server.workbooks.get()
-        print("Workbooks in site:")
-        for wb in all_workbooks:
-            print(f"ID: {wb.id}, Name: {wb.name}")
+        # Log the workbook ID being used
+        print(f"Attempting to retrieve workbook with ID: {WORKBOOK_ID}")
 
-        # If 5186 is valid:
-        workbook = server.workbooks.get_by_id('5186')  # Use string, not int
+        # List all workbooks to verify the workbook ID
+        # all_workbooks, pagination_item = server.workbooks.get()
+        # print("List of all workbooks:")
+        # for workbook in all_workbooks:
+        #     print(f"Workbook ID: {workbook.id}, Name: {workbook.name}")
+
+    
+        # Get the workbook by ID
+        workbook = server.workbooks.get_by_id(WORKBOOK_ID)
         print(f"Workbook found: {workbook.name}")
 
-        # Continue with view extraction...
+        # Populate the views for the workbook
+        server.workbooks.populate_views(workbook)
 
+        print("List of dashboards:")
+        for view in workbook.views:
+            print(f"View ID: {view.id}, Name: {view.name}, URL: {view.content_url}, Owner: {view.owner_id}")
+
+        # Get the specific view by ID
+        specific_view = server.views.get_by_id(VIEW_ID)
+        print(f"Specific View - Name: {specific_view.name}, URL: {specific_view.content_url}, Owner: {specific_view.owner_id}")
+
+
+
+
+except TSC.ServerResponseError as e:
+    print(f"An error occurred: {e}")
 except Exception as e:
-    print(f"Error: {e}")
+    print(f"An unexpected error occurred: {e}")
