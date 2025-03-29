@@ -101,3 +101,58 @@ except TSC.ServerResponseError as e:
     print(f"Tableau API error: {e}")
 except Exception as e:
     print(f"General error: {e}")
+--------------------------
+
+import requests
+from bs4 import BeautifulSoup
+import csv
+
+# Configuration - REPLACE WITH YOUR ACTUAL CREDENTIALS
+TABLEAU_URL = 'https://uat.insights.citigroup.net'
+VIEW_URL = '/vizql/showadminview/views/WhoHasSeen?view_id=30900'
+USERNAME = 'your_username'
+PASSWORD = 'your_password'
+
+# Create a session to maintain cookies
+session = requests.Session()
+
+# 1. First get the login page to obtain the authenticity token
+login_url = f'{TABLEAU_URL}/views/WhoHasSeen?view_id=30900'
+response = session.get(login_url)
+soup = BeautifulSoup(response.text, 'html.parser')
+
+# 2. Perform login (this is Tableau-specific authentication flow)
+auth_data = {
+    'username': USERNAME,
+    'password': PASSWORD,
+    'rememberMe': 'false'
+}
+
+login_response = session.post(f'{TABLEAU_URL}/auth/login', data=auth_data)
+if 'error' in login_response.text:
+    raise Exception("Login failed")
+
+# 3. Access the protected view
+view_response = session.get(f'{TABLEAU_URL}{VIEW_URL}')
+
+# 4. Parse the data (this will depend on the actual page structure)
+soup = BeautifulSoup(view_response.text, 'html.parser')
+table = soup.find('table', {'class': 'tab-widget'})  # Update class based on actual page
+
+# 5. Extract and save data
+if table:
+    headers = [th.text.strip() for th in table.find_all('th')]
+    rows = []
+    
+    for row in table.find_all('tr'):
+        cols = row.find_all('td')
+        if cols:
+            rows.append([col.text.strip() for col in cols])
+    
+    with open('tableau_data.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+    print("Data saved successfully")
+else:
+    print("No table found on the page")
